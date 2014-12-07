@@ -7,13 +7,22 @@
 
 #include "cpu.h"
 
-ANEMCPU cpu;
-
+ANEMCPU cpu(true);
 
 int main(void)
 {
 
+	//reset CPU
+	cpu.reset();
 
+
+	//have to figure out how/when to get out of simulation
+	while (cpu.programEnd() == false)
+	{
+
+		cpu.clockCycle();
+
+	}
 
 	return 0;
 }

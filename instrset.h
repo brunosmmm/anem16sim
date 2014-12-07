@@ -8,6 +8,8 @@
 #ifndef INSTRSET_H_
 #define INSTRSET_H_
 
+#include <cstdint>
+
 #define ANEM_OPCODE_R 	0x0
 #define ANEM_OPCODE_S 	0x1
 #define ANEM_OPCODE_SW 	0x2
@@ -24,22 +26,38 @@
 
 typedef struct ANEM_I_S
 {
-	uint8_t opcode;
-	uint8_t rega;
-	uint8_t regb;
+	uint8_t opcode : 4;
 
 	union
 	{
-		uint8_t func;
-		uint8_t offset;
-	};
 
-	uint8_t byte;
+		struct {
+			uint8_t rega : 4;
 
-	union
-	{
-		uint16_t address;
-		int16_t offset;
+			union
+			{
+
+				uint8_t byte;
+
+				struct {
+
+					union
+					{
+						uint8_t regb : 4;
+						uint8_t shamt : 4;
+					};
+
+					union
+					{
+						uint8_t func : 4;
+						uint8_t off_4 : 4;
+					};
+				};
+
+			};
+		};
+
+		uint16_t address : 12;
 	};
 
 } ANEMInstruction;

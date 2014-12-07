@@ -11,19 +11,21 @@
 #include <cstdint>
 #include "instrset.h"
 
-
 typedef uint16_t dmem_t;
+typedef uint16_t data_t;
+typedef uint32_t addr_t;
 
 ///Data memory for ANEM
 class ANEMDataMemory
 {
 private:
-	dmem_t dmem[];
+	dmem_t * dmem;
 	uint32_t size;
 public:
+	ANEMDataMemory() {dmem = nullptr; size = 0;};
 	ANEMDataMemory(uint32_t size);
-	uint16_t read(uint32_t address);
-	void write(uint32_t address, dmem_t data);
+	uint16_t read(addr_t address);
+	void write(addr_t address, dmem_t data);
 
 	void clearMem(void);
 
@@ -33,12 +35,15 @@ public:
 class ANEMInstructionMemory
 {
 private:
-	ANEMInstruction imem[];
+	ANEMInstruction * imem;
 	uint32_t size;
 
 public:
+	ANEMInstructionMemory() {imem = nullptr, size=0; };
 	ANEMInstructionMemory(uint32_t size);
-	uint16_t fetch(uint32_t address);
+	ANEMInstruction fetch(addr_t address);
+
+	//load instructions from file
 
 };
 

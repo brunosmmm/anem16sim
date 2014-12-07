@@ -42,3 +42,18 @@ void ANEMDataMemory::clearMem(void)
 	memset((void*)this->dmem,0x0000,sizeof(dmem_t)*this->size);
 
 }
+
+ANEMInstruction ANEMInstructionMemory::fetch(addr_t addr)
+{
+
+	ANEMInstruction nop = {0};
+
+	if (addr > this->size)
+	{
+		//exception, do something here
+		return nop;
+	}
+
+	return this->imem[addr];
+
+}
