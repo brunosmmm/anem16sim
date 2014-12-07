@@ -15,6 +15,7 @@ class ANEMCPU
 {
 private:
 	uint16_t regbnk[16];
+	uint32_t pc;
 	ANEMDataMemory dmem();
 	ANEMInstructionMemory imem();
 public:

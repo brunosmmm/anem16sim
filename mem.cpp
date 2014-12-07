@@ -6,6 +6,7 @@
  */
 
 #include "mem.h"
+#include <cstring>
 
 /***
  * @brief Allocates memory for the instruction mem
@@ -26,9 +27,18 @@ ANEMInstructionMemory::ANEMInstructionMemory(uint32_t size)
 ANEMDataMemory::ANEMDataMemory(uint32_t size)
 {
 	this->size = size;
+
 	//allocate
 	this->dmem = new uint16_t[size];
 
-	memset((void*)this->dmem,0x00,sizeof(dmem_t)*size);
+	//clear memory
+	this->clearMem();
+
+}
+
+void ANEMDataMemory::clearMem(void)
+{
+	//set all to zeros
+	memset((void*)this->dmem,0x0000,sizeof(dmem_t)*this->size);
 
 }

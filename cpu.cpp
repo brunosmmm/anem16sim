@@ -5,22 +5,21 @@
  * @since 12/05/2014
  */
 
+#include "cpu.h"
 
-
-
-void ANEM_mainLoop(void)
+void ANEMCPU::reset(void)
 {
 
-
-
-
-
+	//clear data memory
+	this->dmem.clearMem();
+	//clear registers
+	//zero PC
 
 
 }
 
 
-void ANEM_clockCycle(void)
+void ANEMCPU::clockCycle(void)
 {
 
 	//fetch

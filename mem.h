@@ -8,9 +8,11 @@
 #ifndef MEM_H_
 #define MEM_H_
 
-#include "instset.h"
+#include <cstdint>
+#include "instrset.h"
 
-typedef dmem_t uint16_t;
+
+typedef uint16_t dmem_t;
 
 ///Data memory for ANEM
 class ANEMDataMemory
@@ -22,6 +24,8 @@ public:
 	ANEMDataMemory(uint32_t size);
 	uint16_t read(uint32_t address);
 	void write(uint32_t address, dmem_t data);
+
+	void clearMem(void);
 
 };
 
