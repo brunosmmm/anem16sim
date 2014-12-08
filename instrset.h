@@ -24,6 +24,20 @@
 
 //0xB, 0xE, 0x7, 0x6 FREE
 
+//alu functions
+#define ANEM_FUNC_ADD 0x2
+#define ANEM_FUNC_SUB 0x6
+#define ANEM_FUNC_OR  0x1
+#define ANEM_FUNC_AND 0x0
+#define ANEM_FUNC_XOR 0xF
+#define ANEM_FUNC_NOR 0xC
+#define ANEM_FUNC_SLT 0x7
+#define ANEM_FUNC_SHL 0x2
+#define ANEM_FUNC_SHR 0x1
+#define ANEM_FUNC_SAR 0x0
+#define ANEM_FUNC_ROL 0x8
+#define ANEM_FUNC_ROR 0x4
+
 typedef struct ANEM_I_S
 {
 	uint8_t opcode : 4;

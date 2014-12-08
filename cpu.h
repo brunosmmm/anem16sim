@@ -20,6 +20,10 @@ struct d2e
 {
 	ANEMRegBnkOp reg_ctl;
 	ANEMAluOp alu_ctl;
+	ANEMAluFunc alu_func;
+	uint8_t alu_shamt;
+
+
 
 };
 
@@ -27,6 +31,7 @@ struct d2e
 struct e2m
 {
 	ANEMRegBnkOp reg_ctl;
+	ANEMAluOut  alu_out;
 
 };
 
@@ -34,6 +39,7 @@ struct e2m
 struct m2w
 {
 	ANEMRegBnkOp reg_ctl;
+	ANEMAluOut alu_out;
 
 };
 
