@@ -10,8 +10,11 @@
 
 #include "mem.h"
 
+#define ANEM_ALU_Z 0x1
+
 enum ANEMAluOp {aluR, aluS, aluNOP, aluREL, aluOFFSET};
 enum ANEMAluFunc {aluADD, aluSUB, aluOR, aluAND, aluXOR, aluNOR, aluSLT, aluSHL, aluSHR, aluSAR, aluROL, aluROR};
+
 
 typedef struct ALU_OUT
 {
@@ -24,7 +27,7 @@ typedef struct ALU_OUT
 class ANEMAlu
 {
 public:
-	ANEMAluOut operate(ANEMAluFunc func, data_t aluA, data_t aluB);
+	ANEMAluOut operate(ANEMAluOp op, uint8_t shamt, ANEMAluFunc func, data_t aluA, data_t aluB);
 
 };
 

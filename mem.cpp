@@ -29,7 +29,7 @@ ANEMDataMemory::ANEMDataMemory(uint32_t size)
 	this->size = size;
 
 	//allocate
-	this->dmem = new uint16_t[size];
+	this->dmem = new dmem_t[size];
 
 	//clear memory
 	this->clearMem();
@@ -40,6 +40,33 @@ void ANEMDataMemory::clearMem(void)
 {
 	//set all to zeros
 	memset((void*)this->dmem,0x0000,sizeof(dmem_t)*this->size);
+
+}
+
+data_t ANEMDataMemory::read(addr_t address)
+{
+
+	if (address > this->size)
+	{
+		//exception
+		return 0xFFFF;
+	}
+
+	return this->dmem[address];
+
+}
+
+void ANEMDataMemory::write(addr_t address, dmem_t data)
+{
+
+	if (address > this->size)
+	{
+
+		//exception
+		return;
+	}
+
+	this->dmem[address] = data;
 
 }
 
