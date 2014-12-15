@@ -22,7 +22,7 @@ ANEMAluOut ANEMAlu::operate(ANEMAluOp op, uint8_t shamt, ANEMAluFunc func, data_
 			//R TYPE
 			case aluADD:
 				//signed add?
-				//aout.value =
+				aout.value = (data_t)((int16_t)aluA + (int16_t)aluB);
 				break;
 			case aluSUB:
 				aout.value = aluA - aluB;

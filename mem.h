@@ -11,10 +11,19 @@
 #include <cstdint>
 #include "instrset.h"
 #include <fstream>
+#include "periph.h"
+#include "types.h"
+#include <map>
 
-typedef uint16_t dmem_t;
-typedef uint16_t data_t;
-typedef uint32_t addr_t;
+typedef struct ANEM_ADR_RANGE
+{
+
+	addr_t start;
+	addr_t end;
+
+	ANEM_ADR_RANGE(addr_t start, addr_t end) {this->start = start; this->end = end; }
+
+} ANEMMemoryAddressRange;
 
 ///Data memory for ANEM
 class ANEMDataMemory
@@ -22,6 +31,7 @@ class ANEMDataMemory
 private:
 	dmem_t * dmem;
 	uint32_t size;
+	std::map<addr_t, ANEMMemMappedPeripheral*> vmem;
 public:
 	ANEMDataMemory() {dmem = nullptr; size = 0;};
 	ANEMDataMemory(uint32_t size);
@@ -29,6 +39,8 @@ public:
 	void write(addr_t address, dmem_t data);
 
 	void clearMem(void);
+
+	bool attachPeripheral(addr_t address, ANEMMemMappedPeripheral p);
 
 };
 

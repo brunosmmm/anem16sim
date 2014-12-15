@@ -76,7 +76,7 @@ typedef struct ANEM_I_S
 	};
 
 	ANEM_I_S() { memset(this,0,sizeof(ANEM_I_S)); this->opcode = ANEM_OPCODE_R; this->func = ANEM_FUNC_OR; }
-	ANEM_I_S(uint32_t iword) { memcpy(this,&iword,sizeof(ANEM_I_S)); }
+	ANEM_I_S(uint16_t iword) { memcpy(this,&iword,sizeof(ANEM_I_S)); }
 
 } ANEMInstruction;
 

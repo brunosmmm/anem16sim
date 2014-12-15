@@ -47,9 +47,23 @@ void ANEMDataMemory::clearMem(void)
 data_t ANEMDataMemory::read(addr_t address)
 {
 
+	std::map<addr_t, ANEMMemMappedPeripheral*>::iterator it;
+
 	if (address > this->size)
 	{
-		//exception
+
+		//look into peripherals
+		it = this->vmem.find(address);
+
+		if (it != this->vmem.end())
+		{
+
+			return this->vmem[address]->read(address);
+
+		}
+
+		//not found!
+
 		return 0xFFFF;
 	}
 
@@ -60,10 +74,24 @@ data_t ANEMDataMemory::read(addr_t address)
 void ANEMDataMemory::write(addr_t address, dmem_t data)
 {
 
+	std::map<addr_t, ANEMMemMappedPeripheral*>::iterator it;
+
 	if (address > this->size)
 	{
 
-		//exception
+		//look into peripherals
+		it = this->vmem.find(address);
+
+		if (it != this->vmem.end())
+		{
+
+			this->vmem[address]->write(address,data);
+
+		}
+
+		//not found!
+
+
 		return;
 	}
 
@@ -181,4 +209,48 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 	}
 
 
+}
+
+bool ANEMDataMemory::attachPeripheral(addr_t address, ANEMMemMappedPeripheral p)
+{
+
+	std::map<addr_t, ANEMMemMappedPeripheral*>::iterator it;
+	unsigned int a_range = 0;
+
+	//must be outside of memory range
+	if (address <= this->size) return false;
+
+	//verify if this address is available
+	it = this->vmem.find(address);
+
+	if (it != this->vmem.end())
+	{
+
+		//already allocated, fail
+		return false;
+
+	}
+
+	//check if the peripheral fits in the address space
+	it = this->vmem.find(address+p.getLength());
+	if (it != this->vmem.end())
+	{
+
+		//clash
+		return false;
+
+	}
+
+	//all good, set base address
+	p.setBaseAddress(address);
+
+	//register all addresses
+	a_range = p.getLength();
+
+	while (a_range > 0)
+	{
+		this->vmem[address+(--a_range)] = &p;
+	}
+
+	return true;
 }

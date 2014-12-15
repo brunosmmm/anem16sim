@@ -13,6 +13,7 @@ ANEMCPU::ANEMCPU(bool fw_enable)
 	this->fw_enable = fw_enable;
 
 	this->imem = ANEMInstructionMemory(131072); //128K instruction memory
+	this->dmem = ANEMDataMemory(65487);
 
 
 }
