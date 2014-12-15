@@ -15,7 +15,6 @@ ANEMCPU::ANEMCPU(bool fw_enable)
 	this->imem = ANEMInstructionMemory(131072); //128K instruction memory
 	this->dmem = ANEMDataMemory(65487);
 
-
 }
 
 void ANEMCPU::reset(void)
@@ -52,7 +51,7 @@ void ANEMCPU::clockCycle(void)
 	///@todo no need to use function argument and return values, can manipulate internal structures directly
 
 	//fetch
-	ireg = this->p_fetch(this->pc);
+	ireg = this->p_fetch();
 
 	//decode
 	//use last instruction then update to emulate register behavior
@@ -73,14 +72,44 @@ void ANEMCPU::clockCycle(void)
 
 }
 
-ANEMInstruction ANEMCPU::p_fetch(addr_t addr)
+ANEMInstruction ANEMCPU::p_fetch(void)
 {
+	addr_t npc;
+	ANEMInstruction instr;
 
-	//set new PC
+	//some parts are decoded at fetch
+	instr = this->imem.fetch(this->pc);
+
+	//inconditional jumps.
+	//JR is also inconditional but must pass through decode stage!
+	if (instr.opcode == ANEM_OPCODE_J)
+	{
+		//inconditional jump, immediately we know next PC
+		//calculate and set
+		npc = this->pc + (int16_t)instr.address;
+
+	}
+	else if (instr.opcode == ANEM_OPCODE_JAL)
+	{
+		//JAL is also inconditional.
+		//It is not properly implemented in VHDL anem16pipe
+		npc = this->pc + (int16_t)instr.address;
+
+		//this is a hack - not cycle accurate. structural hazard
+		this->regbnk.r_write(14,(this->pc & 0xFF00) >> 8);
+		this->regbnk.r_write(15,(this->pc & 0x00FF));
+
+		//what happens with pipeline???
+
+	} else
+		npc = this->pc + 1;
+
+	//set new pc
+	this->pc = npc;
 
 	//return instruction
-	//return this->imem.fetch(addr);
-	return ANEM_INSTRUCTION_NOP;
+	return instr;
+	//return ANEM_INSTRUCTION_NOP;
 
 }
 
@@ -342,5 +371,14 @@ bool ANEMCPU::programEnd(void)
 {
 
 	return false; //for now
+
+}
+
+void ANEMCPU::loadProgram(std::string fileName)
+{
+
+	this->imem.loadProgram(fileName);
+
+	this->reset();
 
 }

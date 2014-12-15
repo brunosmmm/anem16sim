@@ -94,7 +94,7 @@ private:
 	ANEMAlu alu;
 
 	//pipeline stages
-	ANEMInstruction p_fetch(addr_t addr);
+	ANEMInstruction p_fetch(void);
 	struct d2e p_decode(ANEMInstruction i);
 	struct e2m p_execute(struct d2e d);
 	struct m2w p_mem(struct e2m e);
@@ -125,6 +125,8 @@ public:
 	void reset(void);
 	void clockCycle(void);
 	bool programEnd(void);
+
+	void loadProgram(std::string fileName);
 
 };
 

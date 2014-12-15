@@ -8,6 +8,7 @@
 #include "mem.h"
 #include <cstring>
 #include <regex>
+#include "except.h"
 
 /***
  * @brief Allocates memory for the instruction mem
@@ -127,6 +128,14 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 	unsigned int i = 0;
 	bool ihex_f = false, bin_f = false;
 
+	if (file.is_open() == false)
+	{
+
+		//bad
+		throw ANEM_PROGRAM_LOAD_EXCEPT;
+
+	}
+
 	while (std::getline(file,line))
 	{
 
@@ -165,18 +174,41 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 			std::regex_match(line,sm,ihex);
 
 			//first group is data field size
-			unsigned int d_size = std::stoi(sm[0],nullptr,16);
+			unsigned int d_size = std::stoi(sm[1].str(),nullptr,16);
 
 			//second group is starting address
-			uint32_t s_addr = std::stoi(sm[1],nullptr,16);
+			uint32_t s_addr = std::stoi(sm[2].str(),nullptr,16);
 
 			//third group is data type
-			unsigned int d_type = std::stoi(sm[2],nullptr,16);
+			unsigned int d_type = std::stoi(sm[3].str(),nullptr,16);
+
+			//verify data type
+			if (d_type == 1)
+			{
+
+				//end of file
+				return;
+
+			}
 
 			//fourth group is instructions, must divide into substrings and convert
+			std::string sub;
+			unsigned int substr = 0;
+			while (d_size > 0)
+			{
+
+				sub = sm[4].str().substr(substr,2);
+
+				this->imem[s_addr++] = ANEMInstruction(std::stoi(sub,nullptr,16));
+
+				substr += 2;
+
+				d_size -= 2;
+
+			}
 
 			//fifth group is checksum
-			unsigned int d_checksum = std::stoi(sm[4],nullptr,16);
+			unsigned int d_checksum = std::stoi(sm[5].str(),nullptr,16);
 
 		} else
 		{
@@ -188,10 +220,10 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 				std::regex_match(line,sm,bin);
 
 				//first group is the address
-				addr_t i_addr = std::stoi(sm[0],nullptr,2);
+				addr_t i_addr = std::stoi(sm[1].str(),nullptr,2);
 
 				//second group is the instruction
-				this->imem[i_addr] = ANEMInstruction(std::stoi(sm[1],nullptr,2));
+				this->imem[i_addr] = ANEMInstruction(std::stoi(sm[2].str(),nullptr,2));
 
 			}
 			else
@@ -244,7 +276,7 @@ bool ANEMDataMemory::attachPeripheral(addr_t address, ANEMMemMappedPeripheral p)
 	//all good, set base address
 	p.setBaseAddress(address);
 
-	//register all addresses
+	//register all addresses in range
 	a_range = p.getLength();
 
 	while (a_range > 0)

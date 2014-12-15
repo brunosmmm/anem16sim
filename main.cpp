@@ -6,6 +6,8 @@
  */
 
 #include "cpu.h"
+#include "except.h"
+#include <iostream>
 
 ANEMCPU cpu(true);
 
@@ -17,6 +19,18 @@ int main(void)
 	//reset CPU
 	cpu.reset();
 
+	try
+	{
+	cpu.loadProgram("serie.bin");
+	}
+	catch (ANEMProgramLoadException &e)
+	{
+
+		//couldn't load file, quit
+		std::cout << "Could not load file!" << std::endl;
+		exit(1);
+
+	}
 
 	//have to figure out how/when to get out of simulation
 	while (cpu.programEnd() == false)
