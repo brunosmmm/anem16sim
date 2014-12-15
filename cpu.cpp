@@ -13,7 +13,7 @@ ANEMCPU::ANEMCPU(bool fw_enable)
 	this->fw_enable = fw_enable;
 
 	this->imem = ANEMInstructionMemory(131072); //128K instruction memory
-	this->dmem = ANEMDataMemory(65487);
+	this->dmem = ANEMDataMemory(65487); //64K (including virtual memory)
 
 }
 
@@ -77,39 +77,25 @@ ANEMInstruction ANEMCPU::p_fetch(void)
 	addr_t npc;
 	ANEMInstruction instr;
 
-	//some parts are decoded at fetch
-	instr = this->imem.fetch(this->pc);
 
-	//inconditional jumps.
-	//JR is also inconditional but must pass through decode stage!
-	if (instr.opcode == ANEM_OPCODE_J)
+	if (this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag || this->decode_to_exec.bz_flag)
 	{
-		//inconditional jump, immediately we know next PC
-		//calculate and set
-		npc = this->pc + (int16_t)instr.address;
+		//jumps
+		instr = this->imem.fetch(this->decode_to_exec.j_dest);
+		npc = this->decode_to_exec.j_dest + 1;
+	} else
+	{
+		//normal operation
+		instr = this->imem.fetch(this->pc);
+		npc = this->pc + 1;
 
 	}
-	else if (instr.opcode == ANEM_OPCODE_JAL)
-	{
-		//JAL is also inconditional.
-		//It is not properly implemented in VHDL anem16pipe
-		npc = this->pc + (int16_t)instr.address;
-
-		//this is a hack - not cycle accurate. structural hazard
-		this->regbnk.r_write(14,(this->pc & 0xFF00) >> 8);
-		this->regbnk.r_write(15,(this->pc & 0x00FF));
-
-		//what happens with pipeline???
-
-	} else
-		npc = this->pc + 1;
 
 	//set new pc
 	this->pc = npc;
 
 	//return instruction
 	return instr;
-	//return ANEM_INSTRUCTION_NOP;
 
 }
 
@@ -124,6 +110,8 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	//initialize
 	toexec.mem_enable = false;
 	toexec.mem_write = false;
+	toexec.j_flag = false;
+	toexec.jr_flag = false;
 
 	//register bank control decode
 	switch (i.opcode)
@@ -160,13 +148,23 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	case ANEM_OPCODE_J:
 		toexec.reg_ctl = regNOP;
 		toexec.alu_ctl = aluREL;
+		toexec.j_flag = true;
 		break;
 	case ANEM_OPCODE_JR:
 		toexec.reg_ctl = regNOP;
+		toexec.alu_ctl = aluNOP;
+		toexec.jr_flag = true;
 		break;
 	case ANEM_OPCODE_JAL:
 		//shouldnt be like that but JAL is not clearly implemented currently
 		toexec.reg_ctl = regNOP;
+		toexec.alu_ctl = aluNOP;
+		toexec.j_flag = true;
+		break;
+	case ANEM_OPCODE_BZ:
+		toexec.reg_ctl = regNOP;
+		toexec.alu_ctl = aluNOP;
+		toexec.bz_flag = true;
 		break;
 	default:
 		toexec.reg_ctl = regNOP;
@@ -241,6 +239,23 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	//read registers
 	toexec.rega_out = this->regbnk.r_read(i.rega);
 	toexec.regb_out = this->regbnk.r_read(i.regb);
+
+	//JR JUMP
+	if (toexec.jr_flag == true)
+	{
+		toexec.j_dest = toexec.rega_out;
+	} else if (toexec.j_flag == true) //J or JAL jump
+	{
+		//calculate immediately, no need to use ALU. Signed ADD
+		toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.address);
+	} else if (toexec.bz_flag == true) //BZ jump
+	{
+		//calculate immediately
+		if (this->exec_to_mem.alu_out.flags & ANEM_ALU_Z)
+			toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.address);
+		else
+			toexec.j_dest = this->pc + 1;
+	}
 
 	//immediate
 	toexec.imm_val = i.byte;

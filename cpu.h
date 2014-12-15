@@ -46,6 +46,13 @@ struct d2e
 	//offset for memory access
 	uint8_t off_4;
 
+	//jumps
+	bool j_flag; //J and JAL types
+	bool jr_flag;
+	bool bz_flag;
+
+	addr_t j_dest; //for J, JR and JAL
+
 	bool bubble;
 };
 
