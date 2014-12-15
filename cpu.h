@@ -18,6 +18,8 @@
 struct f2d
 {
 	ANEMInstruction ireg;
+
+	bool bubble;
 };
 
 //decode to execute "registers"
@@ -44,6 +46,7 @@ struct d2e
 	//offset for memory access
 	uint8_t off_4;
 
+	bool bubble;
 };
 
 //execute to memory "registers"
@@ -62,6 +65,7 @@ struct e2m
 	//immediate
 	uint8_t imm_val;
 
+	bool bubble;
 };
 
 //memory to writeback "registers"
@@ -76,6 +80,7 @@ struct m2w
 	//immediate
 	uint8_t imm_val;
 
+	bool bubble;
 };
 
 class ANEMCPU

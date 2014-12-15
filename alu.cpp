@@ -61,10 +61,10 @@ ANEMAluOut ANEMAlu::operate(ANEMAluOp op, uint8_t shamt, ANEMAluFunc func, data_
 				aout.value = aluA / (1<<shamt);
 				break;
 			case aluROR:
-				aout.value = (aluA >> shamt) | (aluA << sizeof(data_t)*8 - shamt);
+				aout.value = (aluA >> shamt) | (aluA << (sizeof(data_t)*8 - shamt));
 				break;
 			case aluROL:
-				aout.value = (aluA << shamt) | (aluA >> sizeof(data_t)*8 - shamt);
+				aout.value = (aluA << shamt) | (aluA >> (sizeof(data_t)*8 - shamt));
 				break;
 			default:
 				//exception

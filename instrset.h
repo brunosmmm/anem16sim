@@ -9,6 +9,7 @@
 #define INSTRSET_H_
 
 #include <cstdint>
+#include <cstring>
 
 #define ANEM_OPCODE_R 	0x0
 #define ANEM_OPCODE_S 	0x1
@@ -74,7 +75,12 @@ typedef struct ANEM_I_S
 		uint16_t address : 12;
 	};
 
+	ANEM_I_S() { memset(this,0,sizeof(ANEM_I_S)); this->opcode = ANEM_OPCODE_R; this->func = ANEM_FUNC_OR; }
+	ANEM_I_S(uint32_t iword) { memcpy(this,&iword,sizeof(ANEM_I_S)); }
+
 } ANEMInstruction;
+
+extern ANEMInstruction ANEM_INSTRUCTION_NOP;
 
 
 #endif /* INSTRSET_H_ */

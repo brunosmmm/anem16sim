@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include "instrset.h"
+#include <fstream>
 
 typedef uint16_t dmem_t;
 typedef uint16_t data_t;
@@ -44,6 +45,7 @@ public:
 	ANEMInstruction fetch(addr_t address);
 
 	//load instructions from file
+	void loadProgram(std::string fileName);
 
 };
 

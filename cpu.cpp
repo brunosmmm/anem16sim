@@ -12,6 +12,8 @@ ANEMCPU::ANEMCPU(bool fw_enable)
 
 	this->fw_enable = fw_enable;
 
+	this->imem = ANEMInstructionMemory(131072); //128K instruction memory
+
 
 }
 
@@ -26,6 +28,16 @@ void ANEMCPU::reset(void)
 
 	//zero PC
 	this->pc = 0x00000000;
+
+	//initialize pipeline
+	//we put a NOP instruction to be initially processed by the CPU
+	this->fetch_to_decode.ireg = ANEM_INSTRUCTION_NOP;
+
+	//make sure we are not doing anything before the pipeline is filled
+	//after reset
+	this->decode_to_exec.alu_ctl = aluNOP;
+	this->decode_to_exec.reg_ctl = regNOP;
+
 }
 
 
@@ -66,7 +78,8 @@ ANEMInstruction ANEMCPU::p_fetch(addr_t addr)
 	//set new PC
 
 	//return instruction
-	return this->imem.fetch(addr);
+	//return this->imem.fetch(addr);
+	return ANEM_INSTRUCTION_NOP;
 
 }
 

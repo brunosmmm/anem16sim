@@ -7,7 +7,7 @@
 
 #include "instrset.h"
 
-ANEMInstruction ANEM_INSTRUCTION_NOP = {ANEM_OPCODE_R,{0,{0,ANEM_FUNC_OR}}};
+ANEMInstruction ANEM_INSTRUCTION_NOP; //dummy NOP instruction
 
 
 
