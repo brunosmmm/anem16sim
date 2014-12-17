@@ -113,6 +113,12 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	toexec.j_flag = false;
 	toexec.jr_flag = false;
 
+	//disable forwarding
+	toexec.fwd_alu_alua = false;
+	toexec.fwd_alu_alub = false;
+	toexec.fwd_mem_alua = false;
+	toexec.fwd_mem_alub = false;
+
 	//register bank control decode
 	switch (i.opcode)
 	{
@@ -240,22 +246,56 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	toexec.rega_out = this->regbnk.r_read(i.rega);
 	toexec.regb_out = this->regbnk.r_read(i.regb);
 
-	//JR JUMP
-	if (toexec.jr_flag == true)
-	{
-		toexec.j_dest = toexec.rega_out;
-	} else if (toexec.j_flag == true) //J or JAL jump
-	{
-		//calculate immediately, no need to use ALU. Signed ADD
-		toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.address);
-	} else if (toexec.bz_flag == true) //BZ jump
-	{
-		//calculate immediately
-		if (this->exec_to_mem.alu_out.flags & ANEM_ALU_Z)
+	//verify if forwarding is necessary
+
+	//detect RAW
+//	if (toexec.alu_ctl != aluNOP)
+//	{
+//		if (toexec.rega_sel == this->exec_to_mem.rega_sel)
+//		{
+//
+//			//forward from ALU out to exec
+//			toexec.fwd_alu_alua = true;
+//
+//		}
+//		else if (toexec.rega_sel == this->mem_to_wb.rega_sel)
+//		{
+//			//forward from mem to exec
+//			toexec.fwd_mem_alua = true;
+//
+//		}
+//
+//		if (toexec.regb_sel == this->exec_to_mem.rega_sel)
+//		{
+//
+//			//forward from ALU out to exec
+//			toexec.fwd_alu_alub = true;
+//
+//		}
+//		else if (toexec.regb_sel == this->mem_to_wb.rega_sel)
+//		{
+//			//forward from mem to exec
+//			toexec.fwd_mem_alub = true;
+//
+//		}
+//}
+
+		//JR JUMP
+		if (toexec.jr_flag == true)
+		{
+			toexec.j_dest = toexec.rega_out;
+		} else if (toexec.j_flag == true) //J or JAL jump
+		{
+			//calculate immediately, no need to use ALU. Signed ADD
 			toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.address);
-		else
-			toexec.j_dest = this->pc + 1;
-	}
+		} else if (toexec.bz_flag == true) //BZ jump
+		{
+			//calculate immediately
+			if (this->exec_to_mem.alu_out.flags & ANEM_ALU_Z)
+				toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.address);
+			else
+				toexec.j_dest = this->pc + 1;
+		}
 
 	//immediate
 	toexec.imm_val = i.byte;
@@ -283,16 +323,16 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 	//forwarding
 	if (this->fw_enable)
 	{
-		if (this->fwd_alu_alua)
+		if (d.rega_sel == this->exec_to_mem.rega_sel)
 			aluA = this->exec_to_mem.alu_out.value;
-		else if (this->fwd_mem_alua)
+		else if (d.rega_sel == this->mem_to_wb.rega_sel)
 			aluA = this->mem_to_wb.alu_out.value;
 		else
 			aluA = d.rega_out;
 
-		if (this->fwd_alu_alub)
+		if (d.regb_sel == this->exec_to_mem.rega_sel)
 			aluB = this->exec_to_mem.alu_out.value;
-		else if (this->fwd_mem_alub)
+		else if (d.regb_sel == this->mem_to_wb.rega_sel)
 			aluB = this->mem_to_wb.alu_out.value;
 		else
 			aluB = d.regb_out;

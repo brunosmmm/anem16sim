@@ -42,41 +42,21 @@
 typedef struct ANEM_I_S
 {
 	uint8_t opcode : 4;
-
-	union
-	{
-
-		struct {
-			uint8_t rega : 4;
-
-			union
-			{
-
-				uint8_t byte;
-
-				struct {
-
-					union
-					{
-						uint8_t regb : 4;
-						uint8_t shamt : 4;
-					};
-
-					union
-					{
-						uint8_t func : 4;
-						uint8_t off_4 : 4;
-					};
-				};
-
-			};
-		};
-
-		uint16_t address : 12;
-	};
+	uint8_t rega : 4;
+	uint8_t byte;
+	uint8_t regb : 4;
+	uint8_t shamt : 4;
+	uint8_t func : 4;
+	uint8_t off_4 : 4;
+	uint16_t address : 12;
 
 	ANEM_I_S() { memset(this,0,sizeof(ANEM_I_S)); this->opcode = ANEM_OPCODE_R; this->func = ANEM_FUNC_OR; }
-	ANEM_I_S(uint16_t iword) { this->opcode = (iword & 0xF000)>>12; this->address = (iword & 0x0FFF); }
+	ANEM_I_S(uint16_t iword) { this->opcode = (iword & 0xF000)>>12;
+							   this->rega = (iword & 0x0F00)>>8;
+							   this->regb = this->shamt = (iword & 0x00F0)>>4;
+							   this->func = this->off_4 = (iword & 0x000F);
+							   this->byte = (iword & 0x00FF);
+							   this->address = (iword & 0x0FFF); }
 
 } ANEMInstruction;
 

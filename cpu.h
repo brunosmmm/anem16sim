@@ -53,6 +53,11 @@ struct d2e
 
 	addr_t j_dest; //for J, JR and JAL
 
+	bool fwd_alu_alua;
+	bool fwd_alu_alub;
+	bool fwd_mem_alua;
+	bool fwd_mem_alub;
+
 	bool bubble;
 };
 
