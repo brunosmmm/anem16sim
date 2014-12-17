@@ -14,8 +14,6 @@ ANEMCPU cpu(true);
 int main(void)
 {
 
-
-
 	//reset CPU
 	cpu.reset();
 

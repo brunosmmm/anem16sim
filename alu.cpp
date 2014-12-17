@@ -13,6 +13,7 @@ ANEMAluOut ANEMAlu::operate(ANEMAluOp op, uint8_t shamt, ANEMAluFunc func, data_
 	ANEMAluOut aout;
 
 	aout.flags = 0x0;
+	aout.value = 0xFFFF;
 
 	switch(op)
 	{

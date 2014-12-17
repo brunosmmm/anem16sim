@@ -58,6 +58,9 @@ struct d2e
 	bool fwd_mem_alua;
 	bool fwd_mem_alub;
 
+	data_t fwd_alua;
+	data_t fwd_alub;
+
 	bool bubble;
 };
 
@@ -88,6 +91,8 @@ struct m2w
 	data_t mem_out;
 
 	uint8_t rega_sel;
+	data_t rega_out; ///THIS MUST BE PRESENT IN ORDER TO FORWARD AN IMMEDIATE VALUE
+	///@todo modify this in anem16pipe
 
 	//immediate
 	uint8_t imm_val;
@@ -114,6 +119,12 @@ private:
 
 	//stall control
 	bool p_stall_if = false;
+	bool p_stall_id = false;
+	bool p_stall_ex = false;
+	bool p_stall_mem = false;
+	bool p_stall_wb = false;
+	bool p_stall_master = false;
+	unsigned int stallCounter = 0;
 
 	//forwarding flags
 	bool fwd_alu_alua = false;
@@ -132,6 +143,12 @@ private:
 	struct d2e decode_to_exec;
 	struct e2m exec_to_mem;
 	struct m2w mem_to_wb;
+
+	//helper functions
+	data_t getFwdValFromEX(void);
+	data_t getFwdValFromMEM(void);
+	void insertStalls(unsigned int stallCount) { this->p_stall_if = true; this->stallCounter = stallCount; }
+	void manageStalls(void);
 public:
 	ANEMCPU(bool fw_enable);
 	void reset(void);

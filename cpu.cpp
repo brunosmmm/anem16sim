@@ -37,6 +37,18 @@ void ANEMCPU::reset(void)
 	//after reset
 	this->decode_to_exec.alu_ctl = aluNOP;
 	this->decode_to_exec.reg_ctl = regNOP;
+	this->mem_to_wb.reg_ctl = regNOP;
+	this->exec_to_mem.reg_ctl = regNOP;
+
+	//disable stalls
+	this->stallCounter = 0;
+	this->p_stall_if = false;
+	this->p_stall_id = false;
+	this->p_stall_ex = false;
+	this->p_stall_mem = false;
+	this->p_stall_wb = false;
+	this->p_stall_master = false;
+
 
 }
 
@@ -49,6 +61,9 @@ void ANEMCPU::clockCycle(void)
 	struct m2w mreg;
 
 	///@todo no need to use function argument and return values, can manipulate internal structures directly
+
+	//stall control
+	this->manageStalls();
 
 	//fetch
 	ireg = this->p_fetch();
@@ -77,6 +92,12 @@ ANEMInstruction ANEMCPU::p_fetch(void)
 	addr_t npc;
 	ANEMInstruction instr;
 
+	if (this->p_stall_if)
+	{
+		//stalled
+		return this->fetch_to_decode.ireg;
+	}
+
 
 	if (this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag || this->decode_to_exec.bz_flag)
 	{
@@ -104,6 +125,8 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 
 	struct d2e toexec;
 
+	if (this->p_stall_id) return this->decode_to_exec;
+
 	///@todo these structs could be converted to classes that use the previous pipeline stage as an argument to the
 	///constructor, so no initialization is needed
 
@@ -112,6 +135,7 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	toexec.mem_write = false;
 	toexec.j_flag = false;
 	toexec.jr_flag = false;
+	toexec.bz_flag = false;
 
 	//disable forwarding
 	toexec.fwd_alu_alua = false;
@@ -238,6 +262,12 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 		toexec.alu_shamt = i.shamt;
 	}
 
+	//make sure not to write in register 0
+	if (i.rega == 0)
+	{
+		toexec.reg_ctl = regNOP;
+	}
+
 	//register selectors
 	toexec.rega_sel = i.rega;
 	toexec.regb_sel = i.regb;
@@ -249,36 +279,40 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	//verify if forwarding is necessary
 
 	//detect RAW
-//	if (toexec.alu_ctl != aluNOP)
-//	{
-//		if (toexec.rega_sel == this->exec_to_mem.rega_sel)
-//		{
-//
-//			//forward from ALU out to exec
-//			toexec.fwd_alu_alua = true;
-//
-//		}
-//		else if (toexec.rega_sel == this->mem_to_wb.rega_sel)
-//		{
-//			//forward from mem to exec
-//			toexec.fwd_mem_alua = true;
-//
-//		}
-//
-//		if (toexec.regb_sel == this->exec_to_mem.rega_sel)
-//		{
-//
-//			//forward from ALU out to exec
-//			toexec.fwd_alu_alub = true;
-//
-//		}
-//		else if (toexec.regb_sel == this->mem_to_wb.rega_sel)
-//		{
-//			//forward from mem to exec
-//			toexec.fwd_mem_alub = true;
-//
-//		}
-//}
+	if ((this->exec_to_mem.reg_ctl != regNOP) || (this->mem_to_wb.reg_ctl != regNOP))
+	{
+		if ((toexec.rega_sel == this->exec_to_mem.rega_sel) && (toexec.rega_sel != 0))
+		{
+
+			//forward from ALU out to exec
+			toexec.fwd_alu_alua = true;
+			toexec.fwd_alua = this->getFwdValFromEX();
+
+		}
+		else if ((toexec.rega_sel == this->mem_to_wb.rega_sel) && (toexec.rega_sel != 0))
+		{
+			//forward from mem to exec
+			toexec.fwd_mem_alua = true;
+			toexec.fwd_alua = this->getFwdValFromMEM();
+
+		}
+
+		if ((toexec.regb_sel == this->exec_to_mem.rega_sel) && (toexec.regb_sel != 0))
+		{
+
+			//forward from ALU out to exec
+			toexec.fwd_alu_alub = true;
+			toexec.fwd_alub = this->getFwdValFromEX();
+
+		}
+		else if ((toexec.regb_sel == this->mem_to_wb.rega_sel) && (toexec.regb_sel != 0))
+		{
+			//forward from mem to exec
+			toexec.fwd_mem_alub = true;
+			toexec.fwd_alub = this->getFwdValFromMEM();
+
+		}
+	}
 
 		//JR JUMP
 		if (toexec.jr_flag == true)
@@ -313,33 +347,33 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 	struct e2m tomem;
 	data_t aluA, aluB;
 
+	if (this->p_stall_ex) return this->exec_to_mem;
+
 	//pass on to later stages
 	tomem.reg_ctl = d.reg_ctl;
 	tomem.mem_enable = d.mem_enable;
 	tomem.mem_write = d.mem_write;
 	tomem.imm_val = d.imm_val;
 	tomem.rega_sel = d.rega_sel;
+	tomem.rega_out = d.rega_out;
 
 	//forwarding
 	if (this->fw_enable)
 	{
-		if (d.rega_sel == this->exec_to_mem.rega_sel)
-			aluA = this->exec_to_mem.alu_out.value;
-		else if (d.rega_sel == this->mem_to_wb.rega_sel)
-			aluA = this->mem_to_wb.alu_out.value;
+		if (d.fwd_alu_alua || d.fwd_mem_alua)
+			aluA = d.fwd_alua;
 		else
 			aluA = d.rega_out;
 
-		if (d.regb_sel == this->exec_to_mem.rega_sel)
-			aluB = this->exec_to_mem.alu_out.value;
-		else if (d.regb_sel == this->mem_to_wb.rega_sel)
-			aluB = this->mem_to_wb.alu_out.value;
+		if (d.fwd_alu_alub || d.fwd_mem_alub)
+			aluB = d.fwd_alub;
 		else
 			aluB = d.regb_out;
 	} else
 	{
 
 		///@todo must insert stalls if forwarding is disabled
+		this->insertStalls(2); //MEM, WB stages
 
 	}
 
@@ -359,11 +393,14 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 
 	struct m2w towb;
 
+	if (this->p_stall_mem) return this->mem_to_wb;
+
 	//pass data to wb
 	towb.reg_ctl = e.reg_ctl;
 	towb.alu_out = e.alu_out;
 	towb.imm_val = e.imm_val;
 	towb.rega_sel = e.rega_sel;
+	towb.rega_out = e.rega_out;
 
 	//verify if memory access is done
 	if (e.mem_enable)
@@ -388,6 +425,8 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 void ANEMCPU::p_writeback(struct m2w m)
 {
 	data_t regval;
+
+	if (this->p_stall_wb) return;
 
 	//writeback operation
 	switch(m.reg_ctl)
@@ -424,6 +463,11 @@ void ANEMCPU::p_writeback(struct m2w m)
 
 bool ANEMCPU::programEnd(void)
 {
+	static unsigned int cycleCount = 0;
+
+	cycleCount++;
+
+	if (cycleCount == 100) return true;
 
 	return false; //for now
 
@@ -435,5 +479,104 @@ void ANEMCPU::loadProgram(std::string fileName)
 	this->imem.loadProgram(fileName);
 
 	this->reset();
+
+}
+
+data_t ANEMCPU::getFwdValFromEX(void)
+{
+	data_t regval = 0x0000;
+
+	switch (this->exec_to_mem.reg_ctl)
+	{
+	case regLoadALU:
+		return this->exec_to_mem.alu_out.value;
+		break;
+	case regLoadBYTELower:
+
+		//calculate value on-the-fly
+		regval = this->exec_to_mem.rega_out & 0xFF00;
+		regval |= this->exec_to_mem.imm_val;
+		return regval;
+		break;
+
+	case regLoadBYTEUpper:
+
+		regval = this->exec_to_mem.rega_out & 0xFF00;
+		regval |= ((data_t)this->exec_to_mem.imm_val << sizeof(data_t)*4);
+		return regval;
+		break;
+
+	case regLoadMEM:
+		//cannot forward from here! there must be a stall to compensate
+		//this occurs in anem16pipe when there is a LW near a register read
+		///@todo implement stalling logic in anem16pipe
+		this->insertStalls(1); //inserts 1 stall, in next cycle
+		break;
+
+	case regNOP:
+		//makes no sense at all
+		break;
+	default:
+		//error
+		break;
+	}
+
+	return 0xFFFF;
+
+}
+
+data_t ANEMCPU::getFwdValFromMEM(void)
+{
+	data_t regval = 0x0000;
+
+	switch (this->mem_to_wb.reg_ctl)
+	{
+	case regLoadALU:
+		return this->mem_to_wb.alu_out.value;
+		break;
+	case regLoadBYTELower:
+
+		//calculate value on-the-fly
+		regval = this->mem_to_wb.rega_out & 0xFF00;
+		regval |= this->mem_to_wb.imm_val;
+		return regval;
+		break;
+
+	case regLoadBYTEUpper:
+
+		regval = this->mem_to_wb.rega_out & 0xFF00;
+		regval |= ((data_t)this->mem_to_wb.imm_val << sizeof(data_t)*4);
+		return regval;
+		break;
+
+	case regLoadMEM:
+		return this->mem_to_wb.mem_out;
+		break;
+
+	case regNOP:
+		//makes no sense at all
+		break;
+	default:
+		//error
+		break;
+
+
+	}
+
+	return 0xFFFF;
+
+}
+
+void ANEMCPU::manageStalls(void)
+{
+
+	//executed every clock cycle
+	if (this->stallCounter > 0)
+	{
+		this->p_stall_if = true;
+		this->stallCounter--;
+	}
+	else if (this->p_stall_master == false)
+			this->p_stall_if = false;
 
 }
