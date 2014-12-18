@@ -8,14 +8,21 @@
 #include "cpu.h"
 #include "except.h"
 #include <iostream>
+#include "periph/mac.h"
 
 ANEMCPU cpu(true);
 
 int main(void)
 {
+	//standard peripherals
+	ANEMPeripheralMAC mac;
 
-	//reset CPU
+	//attach standard peripherals
+	cpu.attachPeripheral(MAC_BASE_ADDR,mac);
+
+	//reset CPU & peripherals
 	cpu.reset();
+	mac.reset();
 
 	try
 	{

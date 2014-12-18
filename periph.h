@@ -12,7 +12,7 @@
 
 class ANEMMemMappedPeripheral
 {
-private:
+protected:
 	unsigned int length;
 	addr_t baseAddress;
 

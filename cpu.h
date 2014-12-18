@@ -156,6 +156,7 @@ public:
 	bool programEnd(void);
 
 	void loadProgram(std::string fileName);
+	void attachPeripheral(addr_t addr, ANEMMemMappedPeripheral p) { this->dmem.attachPeripheral(addr,p); }
 
 };
 
