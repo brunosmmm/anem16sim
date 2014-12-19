@@ -12,6 +12,7 @@
 #include "mem.h"
 #include "regbnk.h"
 #include "alu.h"
+#include "stats/stats.h"
 
 #define GPR_COUNT 16
 
@@ -143,6 +144,9 @@ private:
 	struct d2e decode_to_exec;
 	struct e2m exec_to_mem;
 	struct m2w mem_to_wb;
+
+	//counters
+	ANEMCounters counters;
 
 	//helper functions
 	data_t getFwdValFromEX(void);

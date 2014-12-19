@@ -85,6 +85,9 @@ void ANEMCPU::clockCycle(void)
 	this->p_writeback(this->mem_to_wb);
 	this->mem_to_wb = mreg;
 
+	//count clock cycles
+	this->counters.clockCycle();
+
 }
 
 ANEMInstruction ANEMCPU::p_fetch(void)
@@ -126,6 +129,9 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	struct d2e toexec;
 
 	if (this->p_stall_id) return this->decode_to_exec;
+
+	//statistics
+	this->counters.instructionDecoded(i);
 
 	///@todo these structs could be converted to classes that use the previous pipeline stage as an argument to the
 	///constructor, so no initialization is needed
