@@ -69,6 +69,19 @@ void ANEMPeripheralMAC::write(addr_t addr, data_t data)
 		//multiplication init
 		this->state = macMULT;
 
+		switch(this->config_reg & MAC_CONFIG_OPMULT)
+		{
+		case 1:
+			this->mult.setInputs(multU,this->a_reg,this->b_reg);
+			break;
+		case 3:
+			this->mult.setInputs(multS,this->a_reg,this->b_reg);
+			break;
+		default:
+			this->mult.setInputs(multNOP,0,0);
+			break;
+		}
+
 	}else
 	{
 
@@ -94,8 +107,13 @@ void ANEMPeripheralMAC::reset(void)
 void ANEMPeripheralMAC::clockCycle(void)
 {
 
+	uint32_t acc_out;
 	//state machine
 	///@todo emulate behavior
+
+	this->mult.clockCycle();
+	this->acc.clockCyle();
+
 	switch(this->state)
 	{
 	case macACC:
@@ -121,6 +139,12 @@ void ANEMPeripheralMAC::clockCycle(void)
 
 			//interrupt
 			if (this->config_reg & MAC_CONFIG_IE) this->config_reg |= MAC_CONFIG_INT;
+
+			//get data
+			acc_out = this->acc.getResult();
+			this->su_reg = (data_t)((acc_out & 0xFFFF0000)>>16);
+			this->sl_reg = (data_t)(acc_out & 0x0000FFFF);
+
 		}
 
 		break;
@@ -129,13 +153,24 @@ void ANEMPeripheralMAC::clockCycle(void)
 		if (this->mult.dataReady())
 		{
 			//multiplication ended
+			this->mult_out = this->mult.getResult();
 
 			//enable accumulator
-
 			this->state = macACC;
-
+			switch(this->config_reg & MAC_CONFIG_OPACC)
+			{
+			case 1:
+				this->acc.setInputs(accU,this->mult_out);
+				break;
+			case 3:
+				this->acc.setInputs(accS,this->mult_out);
+				break;
+			default:
+				this->acc.setInputs(accNOP,0);
+				break;
+			}
 			//disable mult
-			this->mult.operate(multNOP,0,0);
+			this->mult.setInputs(multNOP,0,0);
 
 		}
 
@@ -205,3 +240,18 @@ void MAC_ACC::operate(MACOPACC op, int32_t data)
 	}
 
 }
+
+void MAC_ACC::clockCyle(void)
+{
+
+	this->operate(this->op_reg,this->data_in);
+
+}
+
+void MAC_MULT::clockCycle(void)
+{
+
+	this->operate(this->op_reg,this->opa_reg,this->opb_reg);
+
+}
+
