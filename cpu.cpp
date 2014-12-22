@@ -49,6 +49,9 @@ void ANEMCPU::reset(void)
 	this->p_stall_wb = false;
 	this->p_stall_master = false;
 
+	//reset counters
+	this->counters.reset();
+
 
 }
 

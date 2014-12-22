@@ -42,6 +42,7 @@ int main(void)
 	{
 
 		cpu.clockCycle();
+		mac.clockCycle();
 
 	}
 
