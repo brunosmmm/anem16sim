@@ -16,6 +16,8 @@
 
 #define GPR_COUNT 16
 
+enum ANEMHILOOp {loadUpper, loadLower, fromRegister, doAIS, doAIH_AIL, noOp};
+
 struct f2d
 {
 	ANEMInstruction ireg;
@@ -51,6 +53,7 @@ struct d2e
 	bool j_flag; //J and JAL types
 	bool jr_flag;
 	bool bz_flag;
+  bool bhleq_flag;
 
 	addr_t j_dest; //for J, JR and JAL
 
@@ -63,6 +66,12 @@ struct d2e
 	data_t fwd_alub;
 
 	bool bubble;
+
+  //special register logic
+  ANEMHILOOp hictl;
+  ANEMHILOOp loctl;
+  data_t hiout;
+  data_t loout;
 };
 
 //execute to memory "registers"
@@ -82,6 +91,12 @@ struct e2m
 	uint8_t imm_val;
 
 	bool bubble;
+
+  //special registers
+  ANEMHILOOp hictl;
+  ANEMHILOOp loctl;
+  data_t hiout;
+  data_t loout;
 };
 
 //memory to writeback "registers"
@@ -99,6 +114,11 @@ struct m2w
 	uint8_t imm_val;
 
 	bool bubble;
+
+  ANEMHILOOP hictl;
+  ANEMHILOOP loctl;
+  data_t hiout;
+  data_t loout;
 };
 
 class ANEMCPU

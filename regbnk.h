@@ -12,7 +12,7 @@
 
 #define GPR_COUNT 16
 
-enum ANEMRegBnkOp {regLoadALU, regLoadBYTEUpper, regLoadBYTELower, regLoadMEM, regNOP};
+enum ANEMRegBnkOp {regLoadALU, regLoadBYTEUpper, regLoadBYTELower, regLoadMEM, regNOP, regPC, regLoadHI, regLoadLO};
 
 class ANEMRegBnk
 {

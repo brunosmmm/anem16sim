@@ -195,8 +195,7 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 		toexec.jr_flag = true;
 		break;
 	case ANEM_OPCODE_JAL:
-		//shouldnt be like that but JAL is not clearly implemented currently
-		toexec.reg_ctl = regNOP;
+		toexec.reg_ctl = regPC;
 		toexec.alu_ctl = aluNOP;
 		toexec.j_flag = true;
 		break;
@@ -205,7 +204,79 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 		toexec.alu_ctl = aluNOP;
 		toexec.bz_flag = true;
 		break;
+	case ANEM_OPCODE_BHLEQ:
+	  toexec.reg_ctl = regNOP;
+	  toexec.alu_ctl = aluNOP;
+	  toexec.bhleq_flag = true;
+	  break;
+	case ANEM_OPCODE_M1:
+	  //decide here
+	  switch(i.func)
+	    {
+
+	      case ANEM_M1FUNC_LLL:
+		toexec.hictl = noOp;
+		toexec.loctl = loadLower;
+		break;
+
+	      case ANEM_M1FUNC_LLH:
+		toexec.hictl = noOp;
+		toexec.loctl = loadUpper;
+		break;
+
+	      case ANEM_M1FUNC_LHL:
+		toexec.hictl = loadLower;
+		toexec.loctl = noOp;
+		break;
+
+	      case ANEM_M1FUNC_LHH:
+		toexec.hictl = loadUpper;
+		toexec.loctl = noOp;
+		break;
+
+	      case ANEM_M1FUNC_AIS:
+		toexec.hictl = doAIS;
+		toexec.loctl = doAIS;
+		break;
+
+	      case ANEM_M1FUNC_AIL:
+		toexec.hictl = noOp;
+		toexec.loctl = doAIH_AIL;
+		break;
+
+	      case ANEM_M1FUNC_AIH:
+		toexec.hictl = doAIH_AIL;
+		toexec.loctl = noOp;
+		break;
+
+	      case ANEM_M1FUNC_MFHI:
+		toexec.hictl = noOp;
+		toexec.loctl = noOp;
+		break;
+
+	      case ANEM_M1FUNC_MFLO:
+		toexec.hictl = noOp;
+		toexec.loctl = noOp;
+		break;
+
+	      case ANEM_M1FUNC_MTHI:
+		toexec.hictl = fromRegister;
+		toexec.loctl = noOp;
+		break;
+
+	      case ANEM_M1FUNC_MTLO:
+		toexec.hictl = noOp;
+		toexec.loctl = fromRegister;
+		break;
+
+
+	      default:
+		///@todo flag an exception
+		break;
+	    }
 	default:
+	  //this is an exception!!
+	  ///@todo flag an exception
 		toexec.reg_ctl = regNOP;
 		toexec.alu_ctl = aluNOP;
 		break;
@@ -284,6 +355,10 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	//read registers
 	toexec.rega_out = this->regbnk.r_read(i.rega);
 	toexec.regb_out = this->regbnk.r_read(i.regb);
+
+	//read hi/lo
+	toexec.hiout = this->reghi;
+	toexec.loout = this->reglo;
 
 	//verify if forwarding is necessary
 
@@ -365,6 +440,11 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 	tomem.imm_val = d.imm_val;
 	tomem.rega_sel = d.rega_sel;
 	tomem.rega_out = d.rega_out;
+	tomem.hiout = d.hiout;
+	tomem.loout = d.loout;
+	tomem.hictl = d.hictl;
+	tomem.loctl = d.loctl;
+
 
 	//forwarding
 	if (this->fw_enable)
@@ -410,6 +490,10 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 	towb.imm_val = e.imm_val;
 	towb.rega_sel = e.rega_sel;
 	towb.rega_out = e.rega_out;
+	towb.hiout = e.hiout;
+	towb.loout = e.loout;
+	towb.hictl = e.hictl;
+	towb.loctl = e.loctl;
 
 	//verify if memory access is done
 	if (e.mem_enable)
@@ -434,6 +518,7 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 void ANEMCPU::p_writeback(struct m2w m)
 {
 	data_t regval;
+	sdword_t ais_result;
 
 	if (this->p_stall_wb) return;
 
@@ -465,6 +550,58 @@ void ANEMCPU::p_writeback(struct m2w m)
 		break;
 
 	}
+
+	//calcualte AIS
+	ais_result = (((dword_t)m.hiout << 16) | ((dword_t)m.loout)) + (sdword_t)m.imm_val;
+
+	//special registers
+	switch(m.hictl)
+	  {
+	    case loadLower:
+	      this->reghi = (m.hiout & 0xFF00) | m.imm_val;
+	      break;
+	    case loadUpper:
+	      this->reghi = (m.hiout & 0x00FF) | (data_t)m.imm_val << sizeof(data_t)*4;
+	      break;
+	    case doAIH_AIL:
+	      this->reghi = m.hiout + (sdata_t)m.imm_val;
+	      break;
+
+	    case doAIS:
+	      this->reghi = (data_t)(ais_result >> 16);
+	      break;
+
+	    case fromRegister:
+	      this->reghi = m.rega_out;
+	      break;
+
+	    default:
+	      break;
+	  }
+
+	switch(m.loctl)
+	  {
+	    case loadLower:
+	      this->reglo = (m.loout & 0xFF00) | m.imm_val;
+	      break;
+	    case loadUpper:
+	      this->reglo = (m.loout & 0x00FF) | (data_t)m.imm_val << sizeof(data_t)*4;
+	      break;
+	    case doAIH_AIL:
+	      this->reglo = m.loout + (sdata_t)m.imm_val;
+	      break;
+
+	    case doAIS:
+	      this->reglo = (data_t)(ais_result);
+	      break;
+
+	    case fromRegister:
+	      this->reglo = m.rega_out;
+	      break;
+
+	    default:
+	      break;
+	  }
 
 	//done!
 
