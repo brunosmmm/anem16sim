@@ -93,10 +93,12 @@ void ANEMCPU::clockCycle(void)
 
 }
 
-ANEMInstruction ANEMCPU::p_fetch(void)
+struct f2d ANEMCPU::p_fetch(void)
 {
 	addr_t npc;
 	ANEMInstruction instr;
+	struct f2d todecode;
+
 
 	if (this->p_stall_if)
 	{
@@ -118,15 +120,19 @@ ANEMInstruction ANEMCPU::p_fetch(void)
 
 	}
 
+	todecode.savedpc = this->pc;
+	todecode.ireg = instr;
+
+
 	//set new pc
 	this->pc = npc;
 
 	//return instruction
-	return instr;
+	return todecode;
 
 }
 
-struct d2e ANEMCPU::p_decode(ANEMInstruction i)
+struct d2e ANEMCPU::p_decode(struct f2d i)
 {
 
 	struct d2e toexec;
@@ -134,7 +140,7 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	if (this->p_stall_id) return this->decode_to_exec;
 
 	//statistics
-	this->counters.instructionDecoded(i);
+	this->counters.instructionDecoded(i.ireg);
 
 	///@todo these structs could be converted to classes that use the previous pipeline stage as an argument to the
 	///constructor, so no initialization is needed
@@ -152,8 +158,11 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	toexec.fwd_mem_alua = false;
 	toexec.fwd_mem_alub = false;
 
+	//saved pc
+	toexec.savedpc = i.savedpc;
+
 	//register bank control decode
-	switch (i.opcode)
+	switch (i.ireg.opcode)
 	{
 	case ANEM_OPCODE_LIU:
 		toexec.reg_ctl  = regLoadBYTEUpper;
@@ -211,7 +220,7 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	  break;
 	case ANEM_OPCODE_M1:
 	  //decide here
-	  switch(i.func)
+	  switch(i.ireg.func)
 	    {
 
 	      case ANEM_M1FUNC_LLL:
@@ -286,7 +295,7 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 	//alu function
 	if (toexec.alu_ctl == aluR)
 	{
-		switch(i.func)
+		switch(i.ireg.func)
 		{
 		case ANEM_FUNC_ADD:
 			toexec.alu_func = aluADD;
@@ -317,7 +326,7 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 
 	} else if (toexec.alu_ctl == aluS)
 	{
-		switch(i.func)
+		switch(i.ireg.func)
 		{
 		case ANEM_FUNC_SHL:
 			toexec.alu_func = aluSHL;
@@ -339,22 +348,22 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 			break;
 		}
 
-		toexec.alu_shamt = i.shamt;
+		toexec.alu_shamt = i.ireg.shamt;
 	}
 
 	//make sure not to write in register 0
-	if (i.rega == 0)
+	if (i.ireg.rega == 0)
 	{
 		toexec.reg_ctl = regNOP;
 	}
 
 	//register selectors
-	toexec.rega_sel = i.rega;
-	toexec.regb_sel = i.regb;
+	toexec.rega_sel = i.ireg.rega;
+	toexec.regb_sel = i.ireg.regb;
 
 	//read registers
-	toexec.rega_out = this->regbnk.r_read(i.rega);
-	toexec.regb_out = this->regbnk.r_read(i.regb);
+	toexec.rega_out = this->regbnk.r_read(i.ireg.rega);
+	toexec.regb_out = this->regbnk.r_read(i.ireg.regb);
 
 	//read hi/lo
 	toexec.hiout = this->reghi;
@@ -405,21 +414,22 @@ struct d2e ANEMCPU::p_decode(ANEMInstruction i)
 		} else if (toexec.j_flag == true) //J or JAL jump
 		{
 			//calculate immediately, no need to use ALU. Signed ADD
-			toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.address);
+			toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.ireg.address);
+
 		} else if (toexec.bz_flag == true) //BZ jump
 		{
 			//calculate immediately
 			if (this->exec_to_mem.alu_out.flags & ANEM_ALU_Z)
-				toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.address);
+				toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.ireg.address);
 			else
 				toexec.j_dest = this->pc + 1;
 		}
 
 	//immediate
-	toexec.imm_val = i.byte;
+	toexec.imm_val = i.ireg.byte;
 
 	//offset
-	toexec.off_4 = i.off_4;
+	toexec.off_4 = i.ireg.off_4;
 
 	return toexec;
 
@@ -444,7 +454,7 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 	tomem.loout = d.loout;
 	tomem.hictl = d.hictl;
 	tomem.loctl = d.loctl;
-
+	tomem.savedpc = d.savedpc;
 
 	//forwarding
 	if (this->fw_enable)
@@ -494,6 +504,7 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 	towb.loout = e.loout;
 	towb.hictl = e.hictl;
 	towb.loctl = e.loctl;
+	towb.savedpc = e.savedpc;
 
 	//verify if memory access is done
 	if (e.mem_enable)
@@ -545,6 +556,11 @@ void ANEMCPU::p_writeback(struct m2w m)
 		break;
 	case regNOP:
 		break;
+
+	case regPC:
+	  //JAL instruction - save PC
+	  regval = m.savedpc + 1;
+	  break;
 	default:
 		//exception
 		break;

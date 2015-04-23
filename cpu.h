@@ -21,8 +21,9 @@ enum ANEMHILOOp {loadUpper, loadLower, fromRegister, doAIS, doAIH_AIL, noOp};
 struct f2d
 {
 	ANEMInstruction ireg;
-
+  
 	bool bubble;
+  addr_t savedpc;
 };
 
 //decode to execute "registers"
@@ -72,6 +73,9 @@ struct d2e
   ANEMHILOOp loctl;
   data_t hiout;
   data_t loout;
+
+  //saved pc for jal
+  addr_t savedpc;
 };
 
 //execute to memory "registers"
@@ -97,6 +101,8 @@ struct e2m
   ANEMHILOOp loctl;
   data_t hiout;
   data_t loout;
+
+  addr_t savedpc;
 };
 
 //memory to writeback "registers"
@@ -119,6 +125,8 @@ struct m2w
   ANEMHILOOP loctl;
   data_t hiout;
   data_t loout;
+
+  addr_t savedpc;
 };
 
 class ANEMCPU
