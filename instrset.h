@@ -22,6 +22,8 @@
 #define ANEM_OPCODE_JR  0xC
 #define ANEM_OPCODE_JAL 0xD
 #define ANEM_OPCODE_J   0xF
+#define ANEM_OPCODE_M1  0xE
+#define ANEM_OPCODE_BHLEQ 0x6
 
 //0xB, 0xE, 0x7, 0x6 FREE
 
@@ -33,11 +35,26 @@
 #define ANEM_FUNC_XOR 0xF
 #define ANEM_FUNC_NOR 0xC
 #define ANEM_FUNC_SLT 0x7
+#define ANEM_FUNC_SGT 0x8
+//S functions
 #define ANEM_FUNC_SHL 0x2
 #define ANEM_FUNC_SHR 0x1
 #define ANEM_FUNC_SAR 0x0
 #define ANEM_FUNC_ROL 0x8
 #define ANEM_FUNC_ROR 0x4
+
+//m1 functions
+#define ANEM_M1FUNC_LHL 0x0
+#define ANEM_M1FUNC_LHH 0x1
+#define ANEM_M1FUNC_LLL 0x2
+#define ANEM_M1FUNC_LLH 0x3
+#define ANEM_M1FUNC_AIS 0x4
+#define ANEM_M1FUNC_AIH 0x5
+#define ANEM_M1FUNC_AIL 0x6
+#define ANEM_M1FUNC_MFHI 0x7
+#define ANEM_M1FUNC_MFLO 0x8
+#define ANEM_M1FUNC_MTHI 0x9
+#define ANEM_M1FUNC_MTLO 0xA
 
 typedef struct ANEM_I_S
 {

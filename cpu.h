@@ -111,6 +111,10 @@ private:
 	ANEMInstructionMemory imem;
 	ANEMAlu alu;
 
+	//special registers
+	data_t reghi;
+	data_t reglo;
+
 	//pipeline stages
 	ANEMInstruction p_fetch(void);
 	struct d2e p_decode(ANEMInstruction i);
