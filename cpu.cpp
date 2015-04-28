@@ -58,7 +58,7 @@ void ANEMCPU::reset(void)
 
 void ANEMCPU::clockCycle(void)
 {
-	ANEMInstruction ireg;
+	struct f2d freg;
 	struct d2e dreg;
 	struct e2m ereg;
 	struct m2w mreg;
@@ -69,12 +69,12 @@ void ANEMCPU::clockCycle(void)
 	this->manageStalls();
 
 	//fetch
-	ireg = this->p_fetch();
+	freg = this->p_fetch();
 
 	//decode
 	//use last instruction then update to emulate register behavior
-	dreg = this->p_decode(this->fetch_to_decode.ireg);
-	this->fetch_to_decode.ireg = ireg;
+	dreg = this->p_decode(this->fetch_to_decode);
+	this->fetch_to_decode = freg;
 
 	//execute (ALU)
 	ereg = this->p_execute(this->decode_to_exec);
@@ -103,7 +103,7 @@ struct f2d ANEMCPU::p_fetch(void)
 	if (this->p_stall_if)
 	{
 		//stalled
-		return this->fetch_to_decode.ireg;
+		return this->fetch_to_decode;
 	}
 
 

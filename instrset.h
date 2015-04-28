@@ -36,6 +36,7 @@
 #define ANEM_FUNC_NOR 0xC
 #define ANEM_FUNC_SLT 0x7
 #define ANEM_FUNC_SGT 0x8
+#define ANEM_FUNC_MUL 0x3
 //S functions
 #define ANEM_FUNC_SHL 0x2
 #define ANEM_FUNC_SHR 0x1

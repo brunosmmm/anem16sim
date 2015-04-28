@@ -121,8 +121,8 @@ struct m2w
 
 	bool bubble;
 
-  ANEMHILOOP hictl;
-  ANEMHILOOP loctl;
+  ANEMHILOOp hictl;
+  ANEMHILOOp loctl;
   data_t hiout;
   data_t loout;
 
@@ -144,8 +144,8 @@ private:
 	data_t reglo;
 
 	//pipeline stages
-	ANEMInstruction p_fetch(void);
-	struct d2e p_decode(ANEMInstruction i);
+        struct f2d p_fetch(void);
+	struct d2e p_decode(struct f2d i);
 	struct e2m p_execute(struct d2e d);
 	struct m2w p_mem(struct e2m e);
 	void p_writeback(struct m2w m);
