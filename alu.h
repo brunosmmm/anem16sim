@@ -13,13 +13,14 @@
 #define ANEM_ALU_Z 0x1
 
 enum ANEMAluOp {aluR, aluS, aluNOP, aluREL, aluOFFSET};
-enum ANEMAluFunc {aluADD, aluSUB, aluOR, aluAND, aluXOR, aluNOR, aluSLT, aluSHL, aluSHR, aluSAR, aluROL, aluROR};
+enum ANEMAluFunc {aluADD, aluSUB, aluOR, aluAND, aluXOR, aluNOR, aluSLT, aluSGT, aluSHL, aluSHR, aluSAR, aluROL, aluROR, aluMUL};
 
 
 typedef struct ALU_OUT
 {
 
 	data_t value;
+  data_t hiout; //hi register output from MUL instruction
 	uint8_t flags;
 
 } ANEMAluOut;

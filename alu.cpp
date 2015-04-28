@@ -11,6 +11,7 @@ ANEMAluOut ANEMAlu::operate(ANEMAluOp op, uint8_t shamt, ANEMAluFunc func, data_
 {
 
 	ANEMAluOut aout;
+	dword_t multiply;
 
 	aout.flags = 0x0;
 	aout.value = 0xFFFF;
@@ -43,6 +44,14 @@ ANEMAluOut ANEMAlu::operate(ANEMAluOp op, uint8_t shamt, ANEMAluFunc func, data_
 			case aluSLT:
 				aout.value = (aluB > aluA) ? 1 : 0;
 				break;
+			case aluSGT:
+			  aout.value = (aluB < aluA) ? 1 : 0;
+			  break;
+			case aluMUL: 
+			  multiply = (dword_t)aluA * (dword_t)(aluB);
+			  aout.value = (data_t)multiply;
+			  aout.hiout = (data_t)(multiply >> 16);
+			  break;
 			default:
 				//exception
 				break;
