@@ -312,6 +312,12 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 		case ANEM_FUNC_SLT:
 			toexec.alu_func = aluSLT;
 			break;
+	        case ANEM_FUNC_SGT:
+		  toexec.alu_func = aluSGT;
+		  break;
+		case ANEM_FUNC_MUL:
+		  toexec.alu_func = aluMUL;
+		  break;
 		case ANEM_FUNC_NOR:
 			toexec.alu_func = aluNOR;
 			break;
