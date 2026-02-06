@@ -1,0 +1,33 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [
+      "ann_031223_3e7cky9f4179",
+      "ann_031118_3e7cky6dda98",
+      "ann_011955_3e7ckyd28bb8"
+    ],
+    "code_commit": "17f759f9ebb3112956bebd22ffd7fea644259053",
+    "code_commit_message": "feat: Remote Control Debug API: JSON-RPC over ZMQ wit...",
+    "files": [
+      "debug.cpp",
+      "debug.h",
+      "main.cpp",
+      "meson.build"
+    ],
+    "tasks_linked": [
+      "task_145534_0342b9",
+      "task_133721_1a8d20",
+      "task_015926_8f252c",
+      "task_013614_042d11"
+    ]
+  },
+  "entity_id": null,
+  "lamport_clock": 37,
+  "operation_id": "op_20260206_151231_aa216708",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T15:12:31.643810+00:00"
+}
