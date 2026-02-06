@@ -1,0 +1,23 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "commit_refs": [
+      {
+        "hash": "ee25e2c31ae0f22d3bc2124da683d583b714032f",
+        "hash_short": "ee25e2c",
+        "linked_at": "2026-02-06T16:41:12.508880+00:00",
+        "message": "feat: add HW-compatible trace output and JSON state snapshots\n\nAdd TraceWriter (-T flag) that emits "
+      }
+    ],
+    "last_activity": "2026-02-06T16:41:12.508880+00:00"
+  },
+  "entity_id": "ann_141553_3e7cky1d68ab",
+  "lamport_clock": 51,
+  "operation_id": "op_20260206_164112_83014a48",
+  "operation_type": "annotation_update",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T16:41:12.513965+00:00"
+}
