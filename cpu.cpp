@@ -78,7 +78,9 @@ void ANEMCPU::reset(void)
 	// Reset halt-detection state
 	this->totalCycles = 0;
 	this->lastPC = 0;
+	this->prevPC = 0;
 	this->samePCCount = 0;
+	this->drainCycles = -1;
 
 }
 
@@ -149,6 +151,7 @@ void ANEMCPU::clockCycle(void)
 struct f2d ANEMCPU::p_fetch(void)
 {
 	addr_t npc;
+	addr_t fetchpc; // actual address we fetch from
 	ANEMInstruction instr;
 	struct f2d todecode;
 
@@ -164,8 +167,9 @@ struct f2d ANEMCPU::p_fetch(void)
 	if (this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag)
 	{
 		//unconditional jumps (J, JAL, JR) — dest already computed in decode
-		instr = this->imem.fetch(this->decode_to_exec.j_dest);
-		npc = this->decode_to_exec.j_dest + 1;
+		fetchpc = this->decode_to_exec.j_dest;
+		instr = this->imem.fetch(fetchpc);
+		npc = fetchpc + 1;
 	} else if (this->decode_to_exec.bz_flag)
 	{
 		// SIM-BUG-7 fix: Resolve BZ condition here using exec_to_mem Z flag.
@@ -174,40 +178,43 @@ struct f2d ANEMCPU::p_fetch(void)
 		// p_alu_mem_z_2 which is checked when BZ reaches ALU stage).
 		if (this->exec_to_mem.alu_out.flags & ANEM_ALU_Z)
 		{
-			addr_t dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(this->decode_to_exec.bz_offset));
-			instr = this->imem.fetch(dest);
-			npc = dest + 1;
+			fetchpc = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(this->decode_to_exec.bz_offset));
+			instr = this->imem.fetch(fetchpc);
+			npc = fetchpc + 1;
 		}
 		else
 		{
-			instr = this->imem.fetch(this->pc);
-			npc = this->pc + 1;
+			fetchpc = this->pc;
+			instr = this->imem.fetch(fetchpc);
+			npc = fetchpc + 1;
 		}
 	} else if (this->decode_to_exec.bhleq_flag)
 	{
 		// BHLEQ: branch if HI == LO, resolved here for same timing reason
 		if (this->reghi == this->reglo)
 		{
-			addr_t dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(this->decode_to_exec.bz_offset));
-			instr = this->imem.fetch(dest);
-			npc = dest + 1;
+			fetchpc = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(this->decode_to_exec.bz_offset));
+			instr = this->imem.fetch(fetchpc);
+			npc = fetchpc + 1;
 		}
 		else
 		{
-			instr = this->imem.fetch(this->pc);
-			npc = this->pc + 1;
+			fetchpc = this->pc;
+			instr = this->imem.fetch(fetchpc);
+			npc = fetchpc + 1;
 		}
 	} else
 	{
 		//normal operation
-		instr = this->imem.fetch(this->pc);
-		npc = this->pc + 1;
+		fetchpc = this->pc;
+		instr = this->imem.fetch(fetchpc);
+		npc = fetchpc + 1;
 
 	}
 
-	todecode.savedpc = this->pc;
+	todecode.savedpc = fetchpc;
 	todecode.ireg = instr;
-	todecode.pc = this->pc;
+	todecode.pc = fetchpc;
 	todecode.bubble = false;
 
 	//set new pc
@@ -318,7 +325,9 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	case ANEM_OPCODE_M1:
 		toexec.reg_ctl = regNOP;
 		toexec.alu_ctl = aluNOP;
-		switch(i.ireg.func)
+		// M1 sub-function is in bits[11:8] (rega field), not bits[3:0] (func field).
+		// Hardware: alias m1op : slv(3 downto 0) is instruction(11 downto 8);
+		switch(i.ireg.rega)
 		{
 		case ANEM_M1FUNC_LLL:
 			toexec.hictl = noOp;
@@ -442,7 +451,8 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	}
 
 	//make sure not to write in register 0
-	if (i.ireg.rega == 0)
+	//Exception: JAL (regPC) always writes to R15, regardless of rega field
+	if (i.ireg.rega == 0 && toexec.reg_ctl != regPC)
 	{
 		toexec.reg_ctl = regNOP;
 	}
@@ -501,15 +511,22 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 		}
 	}
 
-		//JR JUMP
+		//JR JUMP — use forwarded rega value when available
 		if (toexec.jr_flag == true)
 		{
-			toexec.j_dest = toexec.rega_out;
+			if (toexec.fwd_alu_alua || toexec.fwd_mem_alua)
+				toexec.j_dest = toexec.fwd_alua;
+			else
+				toexec.j_dest = toexec.rega_out;
 		} else if (toexec.j_flag == true) //J or JAL jump
 		{
 			// SIM-BUG-3 fix: sign-extend 12-bit offset (hardware does
 			// resize(signed(jdest(11 downto 0)),16) in ifetch.vhd)
-			toexec.j_dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(i.ireg.address));
+			// SIM-BUG-8 fix: use savedpc+1 instead of this->pc.
+			// At decode time this->pc is instruction_addr+2 (both J fetch
+			// and delay slot fetch advanced it), but the assembler computes
+			// offset = target - current - 1, expecting current+1 as base.
+			toexec.j_dest = (addr_t)((int32_t)(i.savedpc + 1) + (int32_t)sign_ext_12(i.ireg.address));
 
 		} else if (toexec.bz_flag == true || toexec.bhleq_flag == true)
 		{
@@ -747,21 +764,33 @@ bool ANEMCPU::programEnd(void)
 	// Safety: max cycle count
 	if (this->totalCycles >= this->maxCycles) return true;
 
-	// Check for HALT instruction at current PC
-	ANEMInstruction instr = this->imem.fetch(this->pc);
-	if (instr.toWord() == ANEM_HALT_WORD) return true;
+	// If draining, count down and return true when done
+	if (this->drainCycles >= 0)
+	{
+		if (this->drainCycles == 0) return true;
+		this->drainCycles--;
+		return false;
+	}
 
-	// Detect infinite loop: PC stuck at same address for N cycles
-	if (this->pc == this->lastPC)
+	// Detect termination: PC stuck in a small loop for N cycles.
+	// A "J self" with delay slot causes PC to alternate between addr and
+	// addr+1, so we track a small window of recent PCs.
+	if (this->pc == this->lastPC || this->pc == this->prevPC)
 	{
 		this->samePCCount++;
-		if (this->samePCCount >= 8) return true;
+		if (this->samePCCount >= 8)
+		{
+			// Start pipeline drain
+			this->drainCycles = 4;
+			return false;
+		}
 	}
 	else
 	{
-		this->lastPC = this->pc;
 		this->samePCCount = 0;
 	}
+	this->prevPC = this->lastPC;
+	this->lastPC = this->pc;
 
 	return false;
 

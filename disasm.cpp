@@ -149,8 +149,9 @@ std::string disassemble(const ANEMInstruction& i)
         return "BHLEQ " + hexStr(i.address, 3);
 
     case ANEM_OPCODE_M1: {
-        std::string fn = m1FuncName(i.func);
-        switch (i.func) {
+        // M1 sub-function is in bits[11:8] (rega field), not bits[3:0]
+        std::string fn = m1FuncName(i.rega);
+        switch (i.rega) {
         case ANEM_M1FUNC_MFHI:
         case ANEM_M1FUNC_MFLO:
             return fn + " " + ra;

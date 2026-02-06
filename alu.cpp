@@ -42,11 +42,11 @@ ANEMAluOut ANEMAlu::operate(ANEMAluOp op, uint8_t shamt, ANEMAluFunc func, data_
 				aout.value = aluA ^ aluB;
 				break;
 			case aluSLT:
-				aout.value = (aluB > aluA) ? 1 : 0;
+				aout.value = ((sdata_t)aluA < (sdata_t)aluB) ? 1 : 0;
 				break;
 			case aluSGT:
-			  aout.value = (aluB < aluA) ? 1 : 0;
-			  break;
+				aout.value = ((sdata_t)aluA > (sdata_t)aluB) ? 1 : 0;
+				break;
 			case aluMUL: 
 			  multiply = (dword_t)aluA * (dword_t)(aluB);
 			  aout.value = (data_t)multiply;
@@ -68,7 +68,7 @@ ANEMAluOut ANEMAlu::operate(ANEMAluOp op, uint8_t shamt, ANEMAluFunc func, data_
 				aout.value = aluA << shamt;
 				break;
 			case aluSAR:
-				aout.value = aluA / (1<<shamt);
+				aout.value = (data_t)((sdata_t)aluA >> shamt);
 				break;
 			case aluROR:
 				aout.value = (aluA >> shamt) | (aluA << (sizeof(data_t)*8 - shamt));

@@ -201,7 +201,9 @@ private:
 	// Cycle counter for programEnd (non-static)
 	unsigned long long totalCycles = 0;
 	addr_t lastPC = 0;
+	addr_t prevPC = 0;
 	unsigned int samePCCount = 0;
+	int drainCycles = -1;  // pipeline drain: -1 = not draining, >=0 = countdown
 
 	//helper functions
 	data_t getFwdValFromEX(void);
