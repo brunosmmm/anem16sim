@@ -1,0 +1,23 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [],
+    "code_commit": "b25084a90f7564795b509e8df25457d2255d1f05",
+    "code_commit_message": "fix(cpu): SIM-BUG-7 \u2014 move BZ/BHLEQ resolution from decode to fetch\n\nBZ/BHLEQ branch condition was resolved in p_decode() using exec_to_mem\nZ flag from instruction N-2. Hardware resolves in ALU stage using\np_alu_mem_z_2 (instruction N-1). Moved resolution to p_fetch() where\ndecode_to_exec holds BZ in EX stage and exec_to_mem correctly holds\ninstruction N-1's Z flag.\n\nAlso added plain sequential binary file format support (16-bit per line,\nno address prefix) for loading hardware assembler output.",
+    "files": [
+      "cpu.cpp",
+      "cpu.h",
+      "mem.cpp"
+    ],
+    "tasks_linked": []
+  },
+  "entity_id": null,
+  "lamport_clock": 24,
+  "operation_id": "op_20260206_023612_3f3c3fcc",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T02:36:12.935823+00:00"
+}
