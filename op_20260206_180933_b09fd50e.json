@@ -1,0 +1,25 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "complexity_factors": null,
+    "perceived_complexity": 0.55,
+    "priority": "high",
+    "tags": [
+      "simulator",
+      "LIL",
+      "LIU",
+      "forwarding"
+    ],
+    "text": "SIM-BUG: LIL/LIU read-modify-write creates false pipeline dependency\\n\\nLIL (regLoadBYTELower) at cpu.cpp:701-705 reads the full register, masks, and writes back. Hardware does direct partial assignment (regbnk.vhd:104) \u2014 no read needed. When LIU+LIL are back-to-back to same register, sim reads stale upper byte because LIU hasn't written back yet.\\n\\nFix: either (a) forward the partial write through the pipeline, or (b) match hardware behavior by tracking partial writes without read-modify-write.\\n\\nAffects: LIW pseudo-instruction, any LIU+LIL sequence to same register.\\nTrace evidence: test_basic MW 0006 (GHDL=abcd, sim=00cd) and MW 0013 (GHDL=ff05, sim=0005).",
+    "type": "bug"
+  },
+  "entity_id": "ann_180933_3e7cky6933e0",
+  "lamport_clock": 59,
+  "operation_id": "op_20260206_180933_b09fd50e",
+  "operation_type": "annotation_create",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T18:09:33.060809+00:00"
+}
