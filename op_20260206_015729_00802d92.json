@@ -1,0 +1,23 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "commit_refs": [
+      {
+        "hash": "d3d1de429bd5dadd38bfdc24ac6086150b76973a",
+        "hash_short": "d3d1de4",
+        "linked_at": "2026-02-06T01:57:29.746146+00:00",
+        "message": "feat(cpu): align simulator with hardware pipeline design\n\nFix critical pipeline bugs (JAL writeback,"
+      }
+    ],
+    "last_activity": "2026-02-06T01:57:29.746146+00:00"
+  },
+  "entity_id": "ann_011955_3e7ckyd28bb8",
+  "lamport_clock": 12,
+  "operation_id": "op_20260206_015729_00802d92",
+  "operation_type": "annotation_update",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T01:57:29.752593+00:00"
+}
