@@ -1,0 +1,24 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "complexity_factors": null,
+    "perceived_complexity": 0.25,
+    "priority": "high",
+    "tags": [
+      "simulator",
+      "JAL",
+      "return-address"
+    ],
+    "text": "SIM-BUG: JAL saves PC+1 instead of PC+2 to R15\\n\\ncpu.cpp:719 does `r_write(15, m.savedpc + 1)` where savedpc is the JAL instruction address. This saves the delay slot address (PC+1), but return should skip both JAL and delay slot (PC+2).\\n\\nHardware: idecode saves `next_inst_addr + 1` which equals the JAL address + 2.\\n\\nFix: change to `m.savedpc + 2`.\\n\\nTrace evidence: test_basic MW 000d (GHDL=0055, sim=0054 \u2014 off by 1).",
+    "type": "bug"
+  },
+  "entity_id": "ann_180936_3e7cky6837e4",
+  "lamport_clock": 60,
+  "operation_id": "op_20260206_180936_6708d138",
+  "operation_type": "annotation_create",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T18:09:36.903663+00:00"
+}
