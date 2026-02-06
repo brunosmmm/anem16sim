@@ -1,0 +1,21 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "scope": "architecture",
+    "tags": [
+      "peripheral",
+      "mac",
+      "memory-mapped"
+    ],
+    "text": "## MAC Peripheral (Multiply-Accumulate Unit)\n\nMemory-mapped at base address 0xFFD4 with 3 registers.\nImplements pipelined multiply + accumulate with:\n- Signed/unsigned multiply modes\n- Signed/unsigned accumulate modes  \n- Status flags: carry, overflow, zero\n- Interrupt support (configurable via config register)\n- Config register with writable mask: 0b1010111100000111\n\nClasses: MAC_MULT (multiplier), MAC_ACC (accumulator), ANEMPeripheralMAC (top-level)\n\nPeripherals are attached to data memory via ANEMDataMemory::attachPeripheral() using a std::map<addr_t, ANEMMemMappedPeripheral*> for virtual memory mapping."
+  },
+  "entity_id": "know_010717_3e7ckyc4af13",
+  "lamport_clock": 3,
+  "operation_id": "op_20260206_010717_0438b367",
+  "operation_type": "knowledge_add",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T01:07:17.009427+00:00"
+}
