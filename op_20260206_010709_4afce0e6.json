@@ -1,0 +1,23 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "scope": "architecture",
+    "tags": [
+      "cpu",
+      "pipeline",
+      "isa",
+      "risc",
+      "16-bit"
+    ],
+    "text": "## ANEM16 Processor Architecture\n\n**ANEM16** is a custom 16-bit RISC processor. anem16sim is its cycle-accurate C++11 simulator.\n\n### Core specs\n- 16 general-purpose registers (R0 hardwired to zero)\n- 16-bit data width, 32-bit addresses\n- Special registers: HI and LO (multiply results, extended ops)\n- Harvard architecture: separate instruction memory (128K) and data memory (64K)\n\n### 5-Stage Pipeline\nFetch \u2192 Decode \u2192 Execute \u2192 Memory \u2192 Writeback\n- Data forwarding (configurable) from EX and MEM stages\n- Stall logic for load-use hazards\n- Branch resolution in decode stage\n\n### Pipeline register structs: f2d, d2e, e2m, m2w\n\n### Instruction Set (16-bit word)\nEncoding: [opcode:4][regA:4][regB/shamt:4][func/off4:4]\nJump encoding: [opcode:4][address:12]\nImmediate encoding: [opcode:4][regA:4][byte:8]\n\n| Opcode | Name | Description |\n|--------|------|-------------|\n| 0x0 | R | ALU reg-reg (ADD, SUB, OR, AND, XOR, NOR, SLT, SGT, MUL) |\n| 0x1 | S | Shift (SHL, SHR, SAR, ROL, ROR) |\n| 0x2 | SW | Store word |\n| 0x3 | LW | Load word |\n| 0x4 | LIU | Load immediate upper byte |\n| 0x5 | LIL | Load immediate lower byte |\n| 0x6 | BHLEQ | Branch HL equal |\n| 0x8 | BZ | Branch if zero |\n| 0xC | JR | Jump register |\n| 0xD | JAL | Jump and link |\n| 0xE | M1 | Special HI/LO ops (MFHI, MFLO, MTHI, MTLO, load/add imm) |\n| 0xF | J | Jump (PC-relative) |"
+  },
+  "entity_id": "know_010709_3e7ckyd99586",
+  "lamport_clock": 1,
+  "operation_id": "op_20260206_010709_4afce0e6",
+  "operation_type": "knowledge_add",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T01:07:09.215496+00:00"
+}
