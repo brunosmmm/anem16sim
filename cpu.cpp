@@ -6,6 +6,15 @@
  */
 
 #include "cpu.h"
+#include <iostream>
+#include <iomanip>
+
+/// Sign-extend a 12-bit value to 16-bit signed
+/// Hardware does: resize(signed(jdest(11 downto 0)), 16)
+static inline int16_t sign_ext_12(uint16_t val)
+{
+	return (int16_t)((val & 0x800) ? (val | 0xF000) : val);
+}
 
 ANEMCPU::ANEMCPU(bool fw_enable)
 {
@@ -76,6 +85,25 @@ void ANEMCPU::clockCycle(void)
 	dreg = this->p_decode(this->fetch_to_decode);
 	this->fetch_to_decode = freg;
 
+	// SIM-BUG-6 fix: When IF is stalled, inject NOP bubble into pipeline.
+	// Hardware: p_s_alu_aluctl_mux forces ALU_OP to "000" and
+	// p_s_wb_regctl_mux to "000" during stalls. Without this, the
+	// stalled instruction gets decoded (and later executed) twice.
+	if (this->p_stall_if)
+	{
+		dreg.reg_ctl = regNOP;
+		dreg.alu_ctl = aluNOP;
+		dreg.mem_enable = false;
+		dreg.mem_write = false;
+		dreg.j_flag = false;
+		dreg.jr_flag = false;
+		dreg.bz_flag = false;
+		dreg.bhleq_flag = false;
+		dreg.hictl = noOp;
+		dreg.loctl = noOp;
+		dreg.bubble = true;
+	}
+
 	//execute (ALU)
 	ereg = this->p_execute(this->decode_to_exec);
 	this->decode_to_exec = dreg;
@@ -107,7 +135,7 @@ struct f2d ANEMCPU::p_fetch(void)
 	}
 
 
-	if (this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag || this->decode_to_exec.bz_flag)
+	if (this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag || this->decode_to_exec.bz_flag || this->decode_to_exec.bhleq_flag)
 	{
 		//jumps
 		instr = this->imem.fetch(this->decode_to_exec.j_dest);
@@ -151,6 +179,10 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	toexec.j_flag = false;
 	toexec.jr_flag = false;
 	toexec.bz_flag = false;
+	toexec.bhleq_flag = false;
+	toexec.hictl = noOp;
+	toexec.loctl = noOp;
+	toexec.bubble = false;
 
 	//disable forwarding
 	toexec.fwd_alu_alua = false;
@@ -209,83 +241,72 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 		toexec.j_flag = true;
 		break;
 	case ANEM_OPCODE_BZ:
+	case ANEM_OPCODE_BZ_T:
+	case ANEM_OPCODE_BZ_N:
 		toexec.reg_ctl = regNOP;
 		toexec.alu_ctl = aluNOP;
 		toexec.bz_flag = true;
 		break;
 	case ANEM_OPCODE_BHLEQ:
-	  toexec.reg_ctl = regNOP;
-	  toexec.alu_ctl = aluNOP;
-	  toexec.bhleq_flag = true;
-	  break;
+		toexec.reg_ctl = regNOP;
+		toexec.alu_ctl = aluNOP;
+		toexec.bhleq_flag = true;
+		break;
 	case ANEM_OPCODE_M1:
-	  //decide here
-	  switch(i.ireg.func)
-	    {
-
-	      case ANEM_M1FUNC_LLL:
-		toexec.hictl = noOp;
-		toexec.loctl = loadLower;
+		toexec.reg_ctl = regNOP;
+		toexec.alu_ctl = aluNOP;
+		switch(i.ireg.func)
+		{
+		case ANEM_M1FUNC_LLL:
+			toexec.hictl = noOp;
+			toexec.loctl = loadLower;
+			break;
+		case ANEM_M1FUNC_LLH:
+			toexec.hictl = noOp;
+			toexec.loctl = loadUpper;
+			break;
+		case ANEM_M1FUNC_LHL:
+			toexec.hictl = loadLower;
+			toexec.loctl = noOp;
+			break;
+		case ANEM_M1FUNC_LHH:
+			toexec.hictl = loadUpper;
+			toexec.loctl = noOp;
+			break;
+		case ANEM_M1FUNC_AIS:
+			toexec.hictl = doAIS;
+			toexec.loctl = doAIS;
+			break;
+		case ANEM_M1FUNC_AIL:
+			toexec.hictl = noOp;
+			toexec.loctl = doAIH_AIL;
+			break;
+		case ANEM_M1FUNC_AIH:
+			toexec.hictl = doAIH_AIL;
+			toexec.loctl = noOp;
+			break;
+		case ANEM_M1FUNC_MFHI:
+			// HW-BUG-5: Hardware has no regbnk_ctl for M1 opcode,
+			// so MFHI/MFLO never write to GPR. Simulator implements
+			// correct behavior.
+			toexec.reg_ctl = regLoadHI;
+			break;
+		case ANEM_M1FUNC_MFLO:
+			toexec.reg_ctl = regLoadLO;
+			break;
+		case ANEM_M1FUNC_MTHI:
+			toexec.hictl = fromRegister;
+			toexec.loctl = noOp;
+			break;
+		case ANEM_M1FUNC_MTLO:
+			toexec.hictl = noOp;
+			toexec.loctl = fromRegister;
+			break;
+		default:
+			break;
+		}
 		break;
-
-	      case ANEM_M1FUNC_LLH:
-		toexec.hictl = noOp;
-		toexec.loctl = loadUpper;
-		break;
-
-	      case ANEM_M1FUNC_LHL:
-		toexec.hictl = loadLower;
-		toexec.loctl = noOp;
-		break;
-
-	      case ANEM_M1FUNC_LHH:
-		toexec.hictl = loadUpper;
-		toexec.loctl = noOp;
-		break;
-
-	      case ANEM_M1FUNC_AIS:
-		toexec.hictl = doAIS;
-		toexec.loctl = doAIS;
-		break;
-
-	      case ANEM_M1FUNC_AIL:
-		toexec.hictl = noOp;
-		toexec.loctl = doAIH_AIL;
-		break;
-
-	      case ANEM_M1FUNC_AIH:
-		toexec.hictl = doAIH_AIL;
-		toexec.loctl = noOp;
-		break;
-
-	      case ANEM_M1FUNC_MFHI:
-		toexec.hictl = noOp;
-		toexec.loctl = noOp;
-		break;
-
-	      case ANEM_M1FUNC_MFLO:
-		toexec.hictl = noOp;
-		toexec.loctl = noOp;
-		break;
-
-	      case ANEM_M1FUNC_MTHI:
-		toexec.hictl = fromRegister;
-		toexec.loctl = noOp;
-		break;
-
-	      case ANEM_M1FUNC_MTLO:
-		toexec.hictl = noOp;
-		toexec.loctl = fromRegister;
-		break;
-
-
-	      default:
-		///@todo flag an exception
-		break;
-	    }
 	default:
-	  //this is an exception!!
-	  ///@todo flag an exception
 		toexec.reg_ctl = regNOP;
 		toexec.alu_ctl = aluNOP;
 		break;
@@ -419,14 +440,21 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			toexec.j_dest = toexec.rega_out;
 		} else if (toexec.j_flag == true) //J or JAL jump
 		{
-			//calculate immediately, no need to use ALU. Signed ADD
-			toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.ireg.address);
+			// SIM-BUG-3 fix: sign-extend 12-bit offset (hardware does
+			// resize(signed(jdest(11 downto 0)),16) in ifetch.vhd)
+			toexec.j_dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(i.ireg.address));
 
 		} else if (toexec.bz_flag == true) //BZ jump
 		{
 			//calculate immediately
 			if (this->exec_to_mem.alu_out.flags & ANEM_ALU_Z)
-				toexec.j_dest = (addr_t)((int32_t)this->pc + (int16_t)i.ireg.address);
+				toexec.j_dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(i.ireg.address));
+			else
+				toexec.j_dest = this->pc + 1;
+		} else if (toexec.bhleq_flag == true) //BHLEQ: branch if HI == LO
+		{
+			if (this->reghi == this->reglo)
+				toexec.j_dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(i.ireg.address));
 			else
 				toexec.j_dest = this->pc + 1;
 		}
@@ -474,6 +502,13 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 			aluB = d.fwd_alub;
 		else
 			aluB = d.regb_out;
+
+		// Forward store data for SW: rega_out carries the data to store,
+		// but forwarding only updates aluA which gets overridden by off_4.
+		// The hardware forwarding mux also feeds the store data path.
+		if (d.mem_write && (d.fwd_alu_alua || d.fwd_mem_alua))
+			tomem.rega_out = d.fwd_alua;
+
 	} else
 	{
 
@@ -564,9 +599,18 @@ void ANEMCPU::p_writeback(struct m2w m)
 		break;
 
 	case regPC:
-	  //JAL instruction - save PC
-	  regval = m.savedpc + 1;
-	  break;
+		// SIM-BUG-1 fix: JAL must write return address to R15
+		// Hardware: regbnk_ctl "101" writes PC_IN to register 15
+		this->regbnk.r_write(15, m.savedpc + 1);
+		break;
+	case regLoadHI:
+		// MFHI: move HI register to GPR
+		this->regbnk.r_write(m.rega_sel, m.hiout);
+		break;
+	case regLoadLO:
+		// MFLO: move LO register to GPR
+		this->regbnk.r_write(m.rega_sel, m.loout);
+		break;
 	default:
 		//exception
 		break;
@@ -631,13 +675,28 @@ void ANEMCPU::p_writeback(struct m2w m)
 
 bool ANEMCPU::programEnd(void)
 {
-	static unsigned int cycleCount = 0;
+	static addr_t lastPC = 0;
+	static unsigned int samePC_count = 0;
+	static unsigned int totalCycles = 0;
 
-	cycleCount++;
+	totalCycles++;
 
-	if (cycleCount == 100) return true;
+	// Safety: max cycle count
+	if (totalCycles >= maxCycles) return true;
 
-	return false; //for now
+	// Detect infinite loop: PC stuck at same address for N cycles
+	if (this->pc == lastPC)
+	{
+		samePC_count++;
+		if (samePC_count >= 8) return true;
+	}
+	else
+	{
+		lastPC = this->pc;
+		samePC_count = 0;
+	}
+
+	return false;
 
 }
 
@@ -658,34 +717,36 @@ data_t ANEMCPU::getFwdValFromEX(void)
 	{
 	case regLoadALU:
 		return this->exec_to_mem.alu_out.value;
-		break;
-	case regLoadBYTELower:
 
-		//calculate value on-the-fly
+	case regLoadBYTELower:
+		// SIM-BUG-4 (HW-BUG-4): Forward the byte-loaded value,
+		// not undefined ALU output
 		regval = this->exec_to_mem.rega_out & 0xFF00;
 		regval |= this->exec_to_mem.imm_val;
 		return regval;
-		break;
 
 	case regLoadBYTEUpper:
-
-		regval = this->exec_to_mem.rega_out & 0xFF00;
+		regval = this->exec_to_mem.rega_out & 0x00FF;
 		regval |= ((data_t)this->exec_to_mem.imm_val << sizeof(data_t)*4);
 		return regval;
-		break;
 
 	case regLoadMEM:
 		//cannot forward from here! there must be a stall to compensate
 		//this occurs in anem16pipe when there is a LW near a register read
-		///@todo implement stalling logic in anem16pipe
 		this->insertStalls(1); //inserts 1 stall, in next cycle
 		break;
 
+	case regPC:
+		// JAL: forward saved PC + 1 (return address written to R15)
+		return this->exec_to_mem.savedpc + 1;
+
+	case regLoadHI:
+		return this->exec_to_mem.hiout;
+
+	case regLoadLO:
+		return this->exec_to_mem.loout;
+
 	case regNOP:
-		//makes no sense at all
-		break;
-	default:
-		//error
 		break;
 	}
 
@@ -701,34 +762,31 @@ data_t ANEMCPU::getFwdValFromMEM(void)
 	{
 	case regLoadALU:
 		return this->mem_to_wb.alu_out.value;
-		break;
-	case regLoadBYTELower:
 
-		//calculate value on-the-fly
+	case regLoadBYTELower:
 		regval = this->mem_to_wb.rega_out & 0xFF00;
 		regval |= this->mem_to_wb.imm_val;
 		return regval;
-		break;
 
 	case regLoadBYTEUpper:
-
-		regval = this->mem_to_wb.rega_out & 0xFF00;
+		regval = this->mem_to_wb.rega_out & 0x00FF;
 		regval |= ((data_t)this->mem_to_wb.imm_val << sizeof(data_t)*4);
 		return regval;
-		break;
 
 	case regLoadMEM:
 		return this->mem_to_wb.mem_out;
-		break;
+
+	case regPC:
+		return this->mem_to_wb.savedpc + 1;
+
+	case regLoadHI:
+		return this->mem_to_wb.hiout;
+
+	case regLoadLO:
+		return this->mem_to_wb.loout;
 
 	case regNOP:
-		//makes no sense at all
 		break;
-	default:
-		//error
-		break;
-
-
 	}
 
 	return 0xFFFF;
@@ -747,4 +805,29 @@ void ANEMCPU::manageStalls(void)
 	else if (this->p_stall_master == false)
 			this->p_stall_if = false;
 
+}
+
+void ANEMCPU::dumpRegisters(void)
+{
+	std::cout << "=== Registers ===" << std::endl;
+	std::cout << "PC = 0x" << std::hex << std::setfill('0') << std::setw(4) << this->pc << std::endl;
+	for (int i = 0; i < GPR_COUNT; i++)
+	{
+		std::cout << "R" << std::dec << std::setw(2) << i << " = 0x"
+		          << std::hex << std::setfill('0') << std::setw(4)
+		          << this->regbnk.r_read(i) << std::endl;
+	}
+	std::cout << "HI = 0x" << std::hex << std::setfill('0') << std::setw(4) << this->reghi << std::endl;
+	std::cout << "LO = 0x" << std::hex << std::setfill('0') << std::setw(4) << this->reglo << std::endl;
+}
+
+void ANEMCPU::dumpMemory(addr_t start, addr_t count)
+{
+	std::cout << "=== Data Memory [" << std::dec << start << ".." << (start+count-1) << "] ===" << std::endl;
+	for (addr_t i = start; i < start + count; i++)
+	{
+		std::cout << "  [" << std::dec << std::setw(4) << i << "] = 0x"
+		          << std::hex << std::setfill('0') << std::setw(4)
+		          << this->dmem.read(i) << std::endl;
+	}
 }

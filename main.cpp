@@ -12,27 +12,29 @@
 
 ANEMCPU cpu(true);
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	//standard peripherals
 	ANEMPeripheralMAC mac;
 
 	//attach standard peripherals
-	cpu.attachPeripheral(MAC_BASE_ADDR,mac);
+	cpu.attachPeripheral(MAC_BASE_ADDR, &mac);
 
 	//reset CPU & peripherals
 	cpu.reset();
 	mac.reset();
 
+	std::string progfile = (argc > 1) ? argv[1] : "serie.bin";
+
 	try
 	{
-	cpu.loadProgram("serie.bin");
+	cpu.loadProgram(progfile);
 	}
 	catch (ANEMProgramLoadException &e)
 	{
 
 		//couldn't load file, quit
-		std::cout << "Could not load file!" << std::endl;
+		std::cout << "Could not load file: " << progfile << std::endl;
 		exit(1);
 
 	}
@@ -45,6 +47,10 @@ int main(void)
 		mac.clockCycle();
 
 	}
+
+	// Dump final state
+	cpu.dumpRegisters();
+	cpu.dumpMemory(0, 16);
 
 	return 0;
 }

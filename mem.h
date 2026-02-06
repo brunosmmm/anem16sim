@@ -40,7 +40,7 @@ public:
 
 	void clearMem(void);
 
-	bool attachPeripheral(addr_t address, ANEMMemMappedPeripheral p);
+	bool attachPeripheral(addr_t address, ANEMMemMappedPeripheral *p);
 
 };
 

@@ -17,8 +17,10 @@ protected:
 	addr_t baseAddress;
 
 public:
-	data_t read(addr_t address) { return 0xFFFF; }
-	void write(addr_t address, data_t data) { }
+	virtual ~ANEMMemMappedPeripheral() {}
+
+	virtual data_t read(addr_t address) { return 0xFFFF; }
+	virtual void write(addr_t address, data_t data) { }
 
 	unsigned int getLength(void) { return length; }
 

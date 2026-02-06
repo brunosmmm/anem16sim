@@ -170,6 +170,7 @@ private:
 
 	//simulation specifics
 	bool fw_enable;
+	unsigned int maxCycles = 10000;
 
 	//pipeline registers
 	struct f2d fetch_to_decode;
@@ -192,8 +193,12 @@ public:
 	bool programEnd(void);
 
 	void loadProgram(std::string fileName);
-	void attachPeripheral(addr_t addr, ANEMMemMappedPeripheral p) { this->dmem.attachPeripheral(addr,p); }
+	void attachPeripheral(addr_t addr, ANEMMemMappedPeripheral *p) { this->dmem.attachPeripheral(addr,p); }
+	void setMaxCycles(unsigned int n) { this->maxCycles = n; }
 
+	// Diagnostic output
+	void dumpRegisters(void);
+	void dumpMemory(addr_t start, addr_t count);
 };
 
 

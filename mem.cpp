@@ -122,7 +122,7 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 	//hex file format regex
 	std::regex ihex("^:([a-fA-F0-9]{2})([a-fA-F0-9]{4})([a-fA-F0-9]{2})([a-fA-F0-9]*)([a-fA-F0-9]{2})");
 	//binary format regex
-	std::regex bin("([01]+)\\t([01]{16})$");
+	std::regex bin("([01]+)[\\t ]+([01]{16})$");
 
 	//line count
 	unsigned int i = 0;
@@ -243,7 +243,7 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 
 }
 
-bool ANEMDataMemory::attachPeripheral(addr_t address, ANEMMemMappedPeripheral p)
+bool ANEMDataMemory::attachPeripheral(addr_t address, ANEMMemMappedPeripheral *p)
 {
 
 	std::map<addr_t, ANEMMemMappedPeripheral*>::iterator it;
@@ -264,7 +264,7 @@ bool ANEMDataMemory::attachPeripheral(addr_t address, ANEMMemMappedPeripheral p)
 	}
 
 	//check if the peripheral fits in the address space
-	it = this->vmem.find(address+p.getLength());
+	it = this->vmem.find(address+p->getLength());
 	if (it != this->vmem.end())
 	{
 
@@ -274,14 +274,14 @@ bool ANEMDataMemory::attachPeripheral(addr_t address, ANEMMemMappedPeripheral p)
 	}
 
 	//all good, set base address
-	p.setBaseAddress(address);
+	p->setBaseAddress(address);
 
 	//register all addresses in range
-	a_range = p.getLength();
+	a_range = p->getLength();
 
 	while (a_range > 0)
 	{
-		this->vmem[address+(--a_range)] = &p;
+		this->vmem[address+(--a_range)] = p;
 	}
 
 	return true;

@@ -98,9 +98,8 @@ private:
 public:
 	ANEMPeripheralMAC(void) { this->length = 3; }
 
-	using ANEMMemMappedPeripheral::read;
-	data_t read(addr_t address);
-	void  write(addr_t address, data_t data);
+	data_t read(addr_t address) override;
+	void write(addr_t address, data_t data) override;
 
 	void reset(void);
 	void clockCycle(void);

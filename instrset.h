@@ -18,14 +18,15 @@
 #define ANEM_OPCODE_LIU 0x4
 #define ANEM_OPCODE_LIL 0x5
 #define ANEM_OPCODE_BZ  0x8
-//0x9 , 0xA reserved for BZ predication
+#define ANEM_OPCODE_BZ_T 0x9
+#define ANEM_OPCODE_BZ_N 0xA
 #define ANEM_OPCODE_JR  0xC
 #define ANEM_OPCODE_JAL 0xD
 #define ANEM_OPCODE_J   0xF
 #define ANEM_OPCODE_M1  0xE
 #define ANEM_OPCODE_BHLEQ 0x6
 
-//0xB, 0xE, 0x7, 0x6 FREE
+//0xB, 0x7 FREE
 
 //alu functions
 #define ANEM_FUNC_ADD 0x2

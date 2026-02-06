@@ -2,3 +2,5 @@ latex/
 html/
 *.o
 doxygen_sqlite3.db
+builddir/
+sim
