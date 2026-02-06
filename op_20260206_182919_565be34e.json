@@ -1,0 +1,26 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [
+      "ann_031223_3e7cky9f4179"
+    ],
+    "code_commit": "a4d9dfebc32bddc8ad797b8494e6f2ff76582041",
+    "code_commit_message": "fix(cpu): SIM-BUG-17/18/19 \u2014 Z flag gating, JAL return address, LIL/LIU forwarding",
+    "files": [
+      "alu.cpp",
+      "cpu.cpp"
+    ],
+    "tasks_linked": [
+      "task_182302_0b152b"
+    ]
+  },
+  "entity_id": null,
+  "lamport_clock": 66,
+  "operation_id": "op_20260206_182919_565be34e",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T18:29:19.382688+00:00"
+}
