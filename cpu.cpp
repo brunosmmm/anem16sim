@@ -97,6 +97,21 @@ void ANEMCPU::clockCycle(void)
 	//stall control
 	this->manageStalls();
 
+	// SIM-BUG-16 fix: Detect 0-gap RAW hazard.
+	// When the instruction about to be decoded (fetch_to_decode) reads a
+	// register that the instruction about to enter EX (decode_to_exec)
+	// will write, forwarding cannot help (producer is in EX simultaneously
+	// with consumer in ID — result not yet in exec_to_mem). Stall IF for
+	// one cycle so the producer advances to exec_to_mem, where the
+	// existing forwarding path picks it up.
+	// Hardware: stall unit detects this and inserts a bubble.
+	if (this->fw_enable && !this->p_stall_if && this->detectZeroGapHazard())
+	{
+		this->p_stall_if = true;
+		// stallCounter stays 0: manageStalls will clear p_stall_if next cycle
+		this->counters.countStall();
+	}
+
 	//fetch
 	freg = this->p_fetch();
 
@@ -920,6 +935,65 @@ void ANEMCPU::manageStalls(void)
 	else if (this->p_stall_master == false)
 			this->p_stall_if = false;
 
+}
+
+bool ANEMCPU::detectZeroGapHazard(void) const
+{
+	// Check if instruction in fetch_to_decode reads a register that the
+	// instruction in decode_to_exec will write (0-gap data dependency).
+	if (this->decode_to_exec.bubble || this->decode_to_exec.reg_ctl == regNOP)
+		return false;
+
+	// Determine destination register of the producer (decode_to_exec)
+	uint8_t dest_reg;
+	if (this->decode_to_exec.reg_ctl == regPC)
+		dest_reg = 15; // JAL always writes to R15
+	else
+		dest_reg = this->decode_to_exec.rega_sel;
+
+	if (dest_reg == 0)
+		return false; // R0 is hardwired zero
+
+	// Determine source registers of the consumer (fetch_to_decode)
+	const ANEMInstruction& instr = this->fetch_to_decode.ireg;
+	bool reads_rega = false;
+	bool reads_regb = false;
+	uint8_t src_a = instr.rega;
+	uint8_t src_b = instr.regb;
+
+	switch (instr.opcode)
+	{
+	case ANEM_OPCODE_R:
+		reads_rega = true; reads_regb = true; break;
+	case ANEM_OPCODE_S:
+		reads_rega = true; break;
+	case ANEM_OPCODE_LIL:
+	case ANEM_OPCODE_LIU:
+		reads_rega = true; break; // read-modify-write (merge byte)
+	case ANEM_OPCODE_LW:
+		reads_regb = true; break; // regb is base address
+	case ANEM_OPCODE_SW:
+		reads_rega = true; reads_regb = true; break; // rega=data, regb=base
+	case ANEM_OPCODE_JR:
+		reads_rega = true; break; // jump target register
+	case ANEM_OPCODE_M1:
+		// MTHI/MTLO read register from func field, not rega
+		if (instr.rega == ANEM_M1FUNC_MTHI || instr.rega == ANEM_M1FUNC_MTLO)
+		{
+			reads_rega = true;
+			src_a = instr.func;
+		}
+		break;
+	default:
+		break; // J, JAL, BZ, BHLEQ — no GPR reads
+	}
+
+	if (reads_rega && src_a != 0 && src_a == dest_reg)
+		return true;
+	if (reads_regb && src_b != 0 && src_b == dest_reg)
+		return true;
+
+	return false;
 }
 
 void ANEMCPU::dumpRegisters(void)

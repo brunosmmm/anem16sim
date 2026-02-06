@@ -212,6 +212,7 @@ private:
 	data_t getFwdValFromMEM(void);
 	void insertStalls(unsigned int stallCount) { this->p_stall_if = true; this->stallCounter = stallCount; }
 	void manageStalls(void);
+	bool detectZeroGapHazard(void) const;
 public:
 	ANEMCPU(bool fw_enable);
 	void reset(void);
