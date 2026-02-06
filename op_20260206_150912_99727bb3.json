@@ -1,0 +1,21 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "branch": "master",
+    "content": "# Remote Control Debug API (JSON-RPC over ZMQ)\n\n## What was done\n\nImplemented the full remote debug API for the ANEM16 simulator:\n\n### New files created\n- `debug_engine.h` / `debug_engine.cpp` \u2014 Pure-logic debug layer extracted from ANEMDebugger\n- `jsonrpc.h` \u2014 JSON-RPC 2.0 request/response utilities (header-only)\n- `debug_server.h` / `debug_server.cpp` \u2014 ZMQ-based debug server with REP+PUB sockets\n\n### Modified files\n- `debug.h` / `debug.cpp` \u2014 Refactored to delegate to DebugEngine (REPL preserved)\n- `main.cpp` \u2014 Added `-r [port]` flag for remote mode\n- `meson.build` \u2014 Added libzmq, cppzmq, nlohmann_json dependencies\n\n### Architecture\n```\nANEMDebugger (REPL) \u2500\u2510\n                      \u251c\u2500\u2500 DebugEngine \u2500\u2500 ANEMCPU\nANEMDebugServer (ZMQ) \u2518\n```\n\n### Protocol\n- REP socket (port N, default 6808): JSON-RPC 2.0 request/response\n- PUB socket (port N+1, default 6809): Async notifications (stopped, trace)\n- 17 RPC methods: step, continue, pause, breakpoint.*, watchpoint.*, registers, memory.*, disassemble, pipeline, trace, stats, reset, status\n\n### Threading\n- `continue` launches `std::jthread` running `engine.runBatch()` in loop\n- Worker checks `pauseRequested` atomic + `stop_token` each batch\n- Notifications queued via mutex, drained in main loop \u2192 published on PUB socket\n\n## Verification\n- Build: clean compilation (zero errors, only pre-existing periph.h warnings)\n- REPL regression: step, breakpoint, registers, pipeline, stats all work identically\n- Protocol: 11 end-to-end tests all passed (status, step, registers, pipeline, disassemble, memory.read, breakpoint+continue+notification, stats, trace, reset, method-not-found)\n",
+    "context": "Completed full implementation of remote debug API feature",
+    "repository_id": "github.com/brunosmmm/anem16sim",
+    "session_id": null,
+    "session_type": "Software Development",
+    "title": "Remote Debug API implemented"
+  },
+  "entity_id": "20260206_1509_remote-debug-api-implemented",
+  "lamport_clock": 36,
+  "operation_id": "op_20260206_150912_99727bb3",
+  "operation_type": "checkpoint_save",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T15:09:12.288386+00:00"
+}
