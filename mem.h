@@ -14,6 +14,8 @@
 #include "periph.h"
 #include "types.h"
 #include <map>
+#include <vector>
+#include <string>
 
 typedef struct ANEM_ADR_RANGE
 {
@@ -25,6 +27,13 @@ typedef struct ANEM_ADR_RANGE
 
 } ANEMMemoryAddressRange;
 
+struct MemAccess {
+	unsigned long long cycle;
+	addr_t address;
+	data_t value;
+	bool write;  // true=write, false=read
+};
+
 ///Data memory for ANEM
 class ANEMDataMemory
 {
@@ -32,6 +41,12 @@ private:
 	dmem_t * dmem;
 	uint32_t size;
 	std::map<addr_t, ANEMMemMappedPeripheral*> vmem;
+
+	// Access logging
+	bool accessLogEnabled = false;
+	std::vector<MemAccess> accessLog;
+	unsigned long long* cyclePtr = nullptr;
+
 public:
 	ANEMDataMemory() {dmem = nullptr; size = 0;};
 	ANEMDataMemory(uint32_t size);
@@ -42,6 +57,14 @@ public:
 
 	bool attachPeripheral(addr_t address, ANEMMemMappedPeripheral *p);
 
+	// Access logging
+	void setAccessLog(bool enable) { accessLogEnabled = enable; }
+	void setCyclePtr(unsigned long long* ptr) { cyclePtr = ptr; }
+	const std::vector<MemAccess>& getAccessLog() const { return accessLog; }
+	void clearAccessLog() { accessLog.clear(); }
+
+	// Peripheral enumeration
+	std::vector<std::pair<addr_t, std::string>> listPeripherals() const;
 };
 
 ///Instruction memory for ANEM

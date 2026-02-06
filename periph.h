@@ -9,6 +9,7 @@
 #define PERIPH_H_
 
 #include "types.h"
+#include <string>
 
 class ANEMMemMappedPeripheral
 {
@@ -21,6 +22,7 @@ public:
 
 	virtual data_t read(addr_t address) { return 0xFFFF; }
 	virtual void write(addr_t address, data_t data) { }
+	virtual std::string getName() const { return "Unknown"; }
 
 	unsigned int getLength(void) { return length; }
 

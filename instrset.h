@@ -10,6 +10,9 @@
 
 #include <cstdint>
 #include <cstring>
+#include <string>
+
+#define ANEM_HALT_WORD 0xFFFF
 
 #define ANEM_OPCODE_R 	0x0
 #define ANEM_OPCODE_S 	0x1
@@ -76,6 +79,10 @@ typedef struct ANEM_I_S
 							   this->func = this->off_4 = (iword & 0x000F);
 							   this->byte = (iword & 0x00FF);
 							   this->address = (iword & 0x0FFF); }
+
+	uint16_t toWord() const {
+		return ((uint16_t)opcode << 12) | ((uint16_t)rega << 8) | byte;
+	}
 
 } ANEMInstruction;
 

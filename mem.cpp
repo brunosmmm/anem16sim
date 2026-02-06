@@ -9,6 +9,7 @@
 #include <cstring>
 #include <regex>
 #include "except.h"
+#include <set>
 
 /***
  * @brief Allocates memory for the instruction mem
@@ -47,41 +48,44 @@ void ANEMDataMemory::clearMem(void)
 
 data_t ANEMDataMemory::read(addr_t address)
 {
-
-	std::map<addr_t, ANEMMemMappedPeripheral*>::iterator it;
+	data_t value;
 
 	if (address > this->size)
 	{
-
 		//look into peripherals
-		it = this->vmem.find(address);
+		auto it = this->vmem.find(address);
 
 		if (it != this->vmem.end())
 		{
-
-			return this->vmem[address]->read(address);
-
+			value = this->vmem[address]->read(address);
 		}
-
-		//not found!
-
-		return 0xFFFF;
+		else
+		{
+			value = 0xFFFF;
+		}
+	}
+	else
+	{
+		value = this->dmem[address];
 	}
 
-	return this->dmem[address];
+	if (this->accessLogEnabled)
+	{
+		unsigned long long cycle = this->cyclePtr ? *this->cyclePtr : 0;
+		this->accessLog.push_back({cycle, address, value, false});
+	}
 
+	return value;
 }
 
 void ANEMDataMemory::write(addr_t address, dmem_t data)
 {
 
-	std::map<addr_t, ANEMMemMappedPeripheral*>::iterator it;
-
 	if (address > this->size)
 	{
 
 		//look into peripherals
-		it = this->vmem.find(address);
+		auto it = this->vmem.find(address);
 
 		if (it != this->vmem.end())
 		{
@@ -91,13 +95,22 @@ void ANEMDataMemory::write(addr_t address, dmem_t data)
 		}
 
 		//not found!
-
+		if (this->accessLogEnabled)
+		{
+			unsigned long long cycle = this->cyclePtr ? *this->cyclePtr : 0;
+			this->accessLog.push_back({cycle, address, data, true});
+		}
 
 		return;
 	}
 
 	this->dmem[address] = data;
 
+	if (this->accessLogEnabled)
+	{
+		unsigned long long cycle = this->cyclePtr ? *this->cyclePtr : 0;
+		this->accessLog.push_back({cycle, address, data, true});
+	}
 }
 
 ANEMInstruction ANEMInstructionMemory::fetch(addr_t addr)
@@ -208,7 +221,7 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 			}
 
 			//fifth group is checksum
-			unsigned int d_checksum = std::stoi(sm[5].str(),nullptr,16);
+			(void)std::stoi(sm[5].str(),nullptr,16);
 
 		} else
 		{
@@ -246,14 +259,13 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 bool ANEMDataMemory::attachPeripheral(addr_t address, ANEMMemMappedPeripheral *p)
 {
 
-	std::map<addr_t, ANEMMemMappedPeripheral*>::iterator it;
 	unsigned int a_range = 0;
 
 	//must be outside of memory range
 	if (address <= this->size) return false;
 
 	//verify if this address is available
-	it = this->vmem.find(address);
+	auto it = this->vmem.find(address);
 
 	if (it != this->vmem.end())
 	{
@@ -285,4 +297,22 @@ bool ANEMDataMemory::attachPeripheral(addr_t address, ANEMMemMappedPeripheral *p
 	}
 
 	return true;
+}
+
+std::vector<std::pair<addr_t, std::string>> ANEMDataMemory::listPeripherals() const
+{
+	// Each peripheral may be registered at multiple addresses (one per byte in range).
+	// Deduplicate by pointer to get unique peripherals with their base address.
+	std::set<ANEMMemMappedPeripheral*> seen;
+	std::vector<std::pair<addr_t, std::string>> result;
+
+	for (const auto& kv : this->vmem)
+	{
+		if (seen.insert(kv.second).second)
+		{
+			result.push_back({kv.second->getBaseAddress(), kv.second->getName()});
+		}
+	}
+
+	return result;
 }

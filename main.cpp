@@ -6,14 +6,77 @@
  */
 
 #include "cpu.h"
+#include "debug.h"
+#include "disasm.h"
 #include "except.h"
 #include <iostream>
+#include <iomanip>
+#include <cstring>
 #include "periph/mac.h"
 
-ANEMCPU cpu(true);
+static void printUsage(const char* prog)
+{
+	std::cerr << "Usage: " << prog << " [options] <program>" << std::endl;
+	std::cerr << "  -d        Interactive debug mode" << std::endl;
+	std::cerr << "  -t        Enable execution trace" << std::endl;
+	std::cerr << "  -s        Print statistics on exit" << std::endl;
+	std::cerr << "  -m N      Set max cycles (default 10000)" << std::endl;
+	std::cerr << "  -h        Show help" << std::endl;
+}
 
 int main(int argc, char *argv[])
 {
+	bool debugMode = false;
+	bool traceMode = false;
+	bool statsMode = false;
+	unsigned int maxCycles = 10000;
+	const char* progFile = nullptr;
+
+	// Parse arguments
+	for (int i = 1; i < argc; i++)
+	{
+		if (strcmp(argv[i], "-d") == 0)
+			debugMode = true;
+		else if (strcmp(argv[i], "-t") == 0)
+			traceMode = true;
+		else if (strcmp(argv[i], "-s") == 0)
+			statsMode = true;
+		else if (strcmp(argv[i], "-m") == 0)
+		{
+			if (i + 1 < argc)
+				maxCycles = std::stoul(argv[++i]);
+			else
+			{
+				std::cerr << "-m requires an argument" << std::endl;
+				return 1;
+			}
+		}
+		else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
+		{
+			printUsage(argv[0]);
+			return 0;
+		}
+		else if (argv[i][0] == '-')
+		{
+			std::cerr << "Unknown option: " << argv[i] << std::endl;
+			printUsage(argv[0]);
+			return 1;
+		}
+		else
+		{
+			progFile = argv[i];
+		}
+	}
+
+	if (!progFile)
+	{
+		std::cerr << "Error: no program file specified." << std::endl;
+		printUsage(argv[0]);
+		return 1;
+	}
+
+	ANEMCPU cpu(true);
+
 	//standard peripherals
 	ANEMPeripheralMAC mac;
 
@@ -24,34 +87,55 @@ int main(int argc, char *argv[])
 	cpu.reset();
 	mac.reset();
 
-	std::string progfile = (argc > 1) ? argv[1] : "serie.bin";
+	cpu.setMaxCycles(maxCycles);
 
 	try
 	{
-	cpu.loadProgram(progfile);
+		cpu.loadProgram(progFile);
 	}
 	catch (ANEMProgramLoadException &e)
 	{
-
-		//couldn't load file, quit
-		std::cout << "Could not load file: " << progfile << std::endl;
-		exit(1);
-
+		std::cout << "Could not load file: " << progFile << std::endl;
+		return 1;
 	}
 
-	//have to figure out how/when to get out of simulation
-	while (cpu.programEnd() == false)
+	if (debugMode)
 	{
+		ANEMDebugger dbg(cpu, traceMode);
+		dbg.run();
+	}
+	else
+	{
+		// Set up trace callback if requested
+		if (traceMode)
+		{
+			cpu.setTraceCallback([](unsigned long long cycle, addr_t pc,
+			                        const ANEMInstruction& instr, const ANEMCPU&) {
+				std::cout << "[" << std::setw(6) << cycle << "] "
+				          << "PC=0x" << std::hex << std::setfill('0')
+				          << std::setw(4) << pc << " "
+				          << std::setfill(' ') << std::dec
+				          << disassemble(instr) << std::endl;
+			});
+		}
 
-		cpu.clockCycle();
-		mac.clockCycle();
+		// Run simulation
+		while (cpu.programEnd() == false)
+		{
+			cpu.clockCycle();
+			mac.clockCycle();
+		}
 
+		// Dump final state
+		cpu.dumpRegisters();
+		cpu.dumpMemory(0, 16);
 	}
 
-	// Dump final state
-	cpu.dumpRegisters();
-	cpu.dumpMemory(0, 16);
+	if (statsMode)
+	{
+		std::cout << std::endl;
+		cpu.dumpStats(std::cout);
+	}
 
 	return 0;
 }
-

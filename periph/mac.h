@@ -100,6 +100,7 @@ public:
 
 	data_t read(addr_t address) override;
 	void write(addr_t address, data_t data) override;
+	std::string getName() const override { return "MAC"; }
 
 	void reset(void);
 	void clockCycle(void);

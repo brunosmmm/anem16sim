@@ -13,6 +13,7 @@
 #include "regbnk.h"
 #include "alu.h"
 #include "stats/stats.h"
+#include <functional>
 
 #define GPR_COUNT 16
 
@@ -21,9 +22,10 @@ enum ANEMHILOOp {loadUpper, loadLower, fromRegister, doAIS, doAIH_AIL, noOp};
 struct f2d
 {
 	ANEMInstruction ireg;
-  
+
 	bool bubble;
-  addr_t savedpc;
+	addr_t savedpc;
+	addr_t pc;  // PC of this instruction
 };
 
 //decode to execute "registers"
@@ -54,7 +56,7 @@ struct d2e
 	bool j_flag; //J and JAL types
 	bool jr_flag;
 	bool bz_flag;
-  bool bhleq_flag;
+	bool bhleq_flag;
 
 	addr_t j_dest; //for J, JR and JAL
 
@@ -68,14 +70,17 @@ struct d2e
 
 	bool bubble;
 
-  //special register logic
-  ANEMHILOOp hictl;
-  ANEMHILOOp loctl;
-  data_t hiout;
-  data_t loout;
+	//special register logic
+	ANEMHILOOp hictl;
+	ANEMHILOOp loctl;
+	data_t hiout;
+	data_t loout;
 
-  //saved pc for jal
-  addr_t savedpc;
+	//saved pc for jal
+	addr_t savedpc;
+
+	addr_t pc;  // PC of this instruction
+	ANEMInstruction ireg;  // original instruction (for disassembly)
 };
 
 //execute to memory "registers"
@@ -96,13 +101,16 @@ struct e2m
 
 	bool bubble;
 
-  //special registers
-  ANEMHILOOp hictl;
-  ANEMHILOOp loctl;
-  data_t hiout;
-  data_t loout;
+	//special registers
+	ANEMHILOOp hictl;
+	ANEMHILOOp loctl;
+	data_t hiout;
+	data_t loout;
 
-  addr_t savedpc;
+	addr_t savedpc;
+
+	addr_t pc;  // PC of this instruction
+	ANEMInstruction ireg;  // original instruction (for disassembly)
 };
 
 //memory to writeback "registers"
@@ -121,13 +129,21 @@ struct m2w
 
 	bool bubble;
 
-  ANEMHILOOp hictl;
-  ANEMHILOOp loctl;
-  data_t hiout;
-  data_t loout;
+	ANEMHILOOp hictl;
+	ANEMHILOOp loctl;
+	data_t hiout;
+	data_t loout;
 
-  addr_t savedpc;
+	addr_t savedpc;
+
+	addr_t pc;  // PC of this instruction
+	ANEMInstruction ireg;  // original instruction (for disassembly)
 };
+
+// Trace callback type
+class ANEMCPU;
+using TraceCallback = std::function<void(unsigned long long cycle, addr_t pc,
+                                         const ANEMInstruction& instr, const ANEMCPU& cpu)>;
 
 class ANEMCPU
 {
@@ -165,9 +181,6 @@ private:
 	bool fwd_mem_alua = false;
 	bool fwd_mem_alub = false;
 
-	//hazards
-
-
 	//simulation specifics
 	bool fw_enable;
 	unsigned int maxCycles = 10000;
@@ -180,6 +193,14 @@ private:
 
 	//counters
 	ANEMCounters counters;
+
+	// Trace
+	TraceCallback traceCallback;
+
+	// Cycle counter for programEnd (non-static)
+	unsigned long long totalCycles = 0;
+	addr_t lastPC = 0;
+	unsigned int samePCCount = 0;
 
 	//helper functions
 	data_t getFwdValFromEX(void);
@@ -199,6 +220,32 @@ public:
 	// Diagnostic output
 	void dumpRegisters(void);
 	void dumpMemory(addr_t start, addr_t count);
+
+	// State access
+	addr_t getPC() const { return pc; }
+	data_t getHI() const { return reghi; }
+	data_t getLO() const { return reglo; }
+	const struct f2d& getFetchToDecode() const { return fetch_to_decode; }
+	const struct d2e& getDecodeToExec() const { return decode_to_exec; }
+	const struct e2m& getExecToMem() const { return exec_to_mem; }
+	const struct m2w& getMemToWB() const { return mem_to_wb; }
+	bool isStalled() const { return p_stall_if; }
+	unsigned long long getCycleCount() const { return totalCycles; }
+
+	// Register/memory access for debugger
+	data_t readRegister(uint8_t reg) const { return const_cast<ANEMRegBnk&>(regbnk).r_read(reg); }
+	data_t readDataMem(addr_t addr) const { return const_cast<ANEMDataMemory&>(dmem).read(addr); }
+	ANEMInstruction readInstrMem(addr_t addr) const { return const_cast<ANEMInstructionMemory&>(imem).fetch(addr); }
+
+	// Trace support
+	void setTraceCallback(TraceCallback cb) { traceCallback = cb; }
+
+	// Statistics
+	void dumpStats(std::ostream& out) const;
+	const ANEMCounters& getCounters() const { return counters; }
+
+	// Memory access logging
+	ANEMDataMemory& getDataMemory() { return dmem; }
 };
 
 

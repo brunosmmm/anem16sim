@@ -6,6 +6,7 @@
  */
 
 #include "cpu.h"
+#include "disasm.h"
 #include <iostream>
 #include <iomanip>
 
@@ -41,13 +42,26 @@ void ANEMCPU::reset(void)
 	//initialize pipeline
 	//we put a NOP instruction to be initially processed by the CPU
 	this->fetch_to_decode.ireg = ANEM_INSTRUCTION_NOP;
+	this->fetch_to_decode.bubble = false;
+	this->fetch_to_decode.pc = 0;
 
 	//make sure we are not doing anything before the pipeline is filled
 	//after reset
 	this->decode_to_exec.alu_ctl = aluNOP;
 	this->decode_to_exec.reg_ctl = regNOP;
+	this->decode_to_exec.bubble = true;
+	this->decode_to_exec.pc = 0;
+	this->decode_to_exec.ireg = ANEM_INSTRUCTION_NOP;
+
 	this->mem_to_wb.reg_ctl = regNOP;
+	this->mem_to_wb.bubble = true;
+	this->mem_to_wb.pc = 0;
+	this->mem_to_wb.ireg = ANEM_INSTRUCTION_NOP;
+
 	this->exec_to_mem.reg_ctl = regNOP;
+	this->exec_to_mem.bubble = true;
+	this->exec_to_mem.pc = 0;
+	this->exec_to_mem.ireg = ANEM_INSTRUCTION_NOP;
 
 	//disable stalls
 	this->stallCounter = 0;
@@ -61,6 +75,10 @@ void ANEMCPU::reset(void)
 	//reset counters
 	this->counters.reset();
 
+	// Reset halt-detection state
+	this->totalCycles = 0;
+	this->lastPC = 0;
+	this->samePCCount = 0;
 
 }
 
@@ -102,6 +120,7 @@ void ANEMCPU::clockCycle(void)
 		dreg.hictl = noOp;
 		dreg.loctl = noOp;
 		dreg.bubble = true;
+		this->counters.countBubble();
 	}
 
 	//execute (ALU)
@@ -119,6 +138,12 @@ void ANEMCPU::clockCycle(void)
 	//count clock cycles
 	this->counters.clockCycle();
 
+	// Invoke trace callback if set
+	if (this->traceCallback)
+	{
+		this->traceCallback(this->counters.getCycleCount(), this->pc,
+		                    this->fetch_to_decode.ireg, *this);
+	}
 }
 
 struct f2d ANEMCPU::p_fetch(void)
@@ -131,6 +156,7 @@ struct f2d ANEMCPU::p_fetch(void)
 	if (this->p_stall_if)
 	{
 		//stalled
+		this->counters.countStall();
 		return this->fetch_to_decode;
 	}
 
@@ -150,7 +176,8 @@ struct f2d ANEMCPU::p_fetch(void)
 
 	todecode.savedpc = this->pc;
 	todecode.ireg = instr;
-
+	todecode.pc = this->pc;
+	todecode.bubble = false;
 
 	//set new pc
 	this->pc = npc;
@@ -192,6 +219,10 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 
 	//saved pc
 	toexec.savedpc = i.savedpc;
+
+	// Track PC and instruction for this stage
+	toexec.pc = i.pc;
+	toexec.ireg = i.ireg;
 
 	//register bank control decode
 	switch (i.ireg.opcode)
@@ -407,6 +438,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			//forward from ALU out to exec
 			toexec.fwd_alu_alua = true;
 			toexec.fwd_alua = this->getFwdValFromEX();
+			this->counters.countForwardAluAlu();
 
 		}
 		else if ((toexec.rega_sel == this->mem_to_wb.rega_sel) && (toexec.rega_sel != 0))
@@ -414,6 +446,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			//forward from mem to exec
 			toexec.fwd_mem_alua = true;
 			toexec.fwd_alua = this->getFwdValFromMEM();
+			this->counters.countForwardMemAlu();
 
 		}
 
@@ -423,6 +456,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			//forward from ALU out to exec
 			toexec.fwd_alu_alub = true;
 			toexec.fwd_alub = this->getFwdValFromEX();
+			this->counters.countForwardAluAlu();
 
 		}
 		else if ((toexec.regb_sel == this->mem_to_wb.rega_sel) && (toexec.regb_sel != 0))
@@ -430,6 +464,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			//forward from mem to exec
 			toexec.fwd_mem_alub = true;
 			toexec.fwd_alub = this->getFwdValFromMEM();
+			this->counters.countForwardMemAlu();
 
 		}
 	}
@@ -489,6 +524,9 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 	tomem.hictl = d.hictl;
 	tomem.loctl = d.loctl;
 	tomem.savedpc = d.savedpc;
+	tomem.pc = d.pc;
+	tomem.ireg = d.ireg;
+	tomem.bubble = d.bubble;
 
 	//forwarding
 	if (this->fw_enable)
@@ -546,6 +584,9 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 	towb.hictl = e.hictl;
 	towb.loctl = e.loctl;
 	towb.savedpc = e.savedpc;
+	towb.pc = e.pc;
+	towb.ireg = e.ireg;
+	towb.bubble = e.bubble;
 
 	//verify if memory access is done
 	if (e.mem_enable)
@@ -675,25 +716,25 @@ void ANEMCPU::p_writeback(struct m2w m)
 
 bool ANEMCPU::programEnd(void)
 {
-	static addr_t lastPC = 0;
-	static unsigned int samePC_count = 0;
-	static unsigned int totalCycles = 0;
-
-	totalCycles++;
+	this->totalCycles++;
 
 	// Safety: max cycle count
-	if (totalCycles >= maxCycles) return true;
+	if (this->totalCycles >= this->maxCycles) return true;
+
+	// Check for HALT instruction at current PC
+	ANEMInstruction instr = this->imem.fetch(this->pc);
+	if (instr.toWord() == ANEM_HALT_WORD) return true;
 
 	// Detect infinite loop: PC stuck at same address for N cycles
-	if (this->pc == lastPC)
+	if (this->pc == this->lastPC)
 	{
-		samePC_count++;
-		if (samePC_count >= 8) return true;
+		this->samePCCount++;
+		if (this->samePCCount >= 8) return true;
 	}
 	else
 	{
-		lastPC = this->pc;
-		samePC_count = 0;
+		this->lastPC = this->pc;
+		this->samePCCount = 0;
 	}
 
 	return false;
@@ -830,4 +871,9 @@ void ANEMCPU::dumpMemory(addr_t start, addr_t count)
 		          << std::hex << std::setfill('0') << std::setw(4)
 		          << this->dmem.read(i) << std::endl;
 	}
+}
+
+void ANEMCPU::dumpStats(std::ostream& out) const
+{
+	this->counters.dumpStats(out);
 }
