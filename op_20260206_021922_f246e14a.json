@@ -1,0 +1,36 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [
+      "ann_011955_3e7ckyd28bb8"
+    ],
+    "code_commit": "f9f0360576452385d022a39b155bdbec254917a2",
+    "code_commit_message": "feat(cpu): add disassembler, interactive debugger, trace and stats output\n\nImplement traceability, debugging & inspection features:\n- Disassembler (disasm.h/cpp) for all ANEM16 instruction types\n- Interactive debugger (debug.h/cpp) with breakpoints, watchpoints,\n  pipeline display, stepping, and REPL\n- Execution trace callback with per-cycle disassembly output\n- Statistics output with instruction mix, forwarding/stall/bubble counters\n- Memory access logging and peripheral enumeration\n- HALT instruction detection (0xFFFF) in programEnd()\n- PC-per-stage tracking in all pipeline register structs\n- CLI flags: -d (debug), -t (trace), -s (stats), -m (max cycles), -h (help)\n- Project upgraded to C++20",
+    "files": [
+      "cpu.cpp",
+      "cpu.h",
+      "instrset.h",
+      "main.cpp",
+      "mem.cpp",
+      "mem.h",
+      "periph.h",
+      "periph/mac.h",
+      "stats/stats.cpp",
+      "stats/stats.h"
+    ],
+    "tasks_linked": [
+      "task_020729_e7694b",
+      "task_015926_8f252c",
+      "task_013614_042d11"
+    ]
+  },
+  "entity_id": null,
+  "lamport_clock": 17,
+  "operation_id": "op_20260206_021922_f246e14a",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T02:19:22.949508+00:00"
+}
