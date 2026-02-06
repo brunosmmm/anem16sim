@@ -56,6 +56,8 @@ private:
 	jsonrpc::json handleStats();
 	jsonrpc::json handleReset();
 	jsonrpc::json handleStatus();
+	jsonrpc::json handleSnapshotSave(const jsonrpc::json& params);
+	jsonrpc::json handleSnapshotLoad(const jsonrpc::json& params);
 
 	// Simulation worker
 	void simLoop(std::stop_token stoken);

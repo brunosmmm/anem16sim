@@ -32,6 +32,8 @@ private:
 	void cmdPipeline();
 	void cmdTrace(const std::vector<std::string>& args);
 	void cmdStats();
+	void cmdSave(const std::vector<std::string>& args);
+	void cmdLoad(const std::vector<std::string>& args);
 	void cmdReset();
 	void cmdHelp();
 

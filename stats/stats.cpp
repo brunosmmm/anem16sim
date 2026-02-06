@@ -9,6 +9,8 @@
 #include "../disasm.h"
 #include <iomanip>
 
+using json = nlohmann::json;
+
 void ANEMInstructionCounters::count(uint8_t opcode)
 {
 	auto it = this->instructionCountByOpcode.find(opcode);
@@ -76,4 +78,38 @@ void ANEMCounters::dumpStats(std::ostream& out) const
 	out << std::endl;
 
 	this->imix.dump(out);
+}
+
+json ANEMCounters::toJson() const
+{
+	json j;
+	j["cycles"] = cyclecount;
+	j["stalls"] = stallCount;
+	j["bubbles"] = bubbleCount;
+	j["fwd_alu_alu"] = fwdAluAluCount;
+	j["fwd_mem_alu"] = fwdMemAluCount;
+
+	json mix;
+	for (const auto& kv : imix.getMap())
+		mix[std::to_string(kv.first)] = kv.second;
+	j["instruction_mix"] = mix;
+
+	return j;
+}
+
+void ANEMCounters::fromJson(const json& j)
+{
+	cyclecount = j.value("cycles", (long long int)0);
+	stallCount = j.value("stalls", (long long int)0);
+	bubbleCount = j.value("bubbles", (long long int)0);
+	fwdAluAluCount = j.value("fwd_alu_alu", (long long int)0);
+	fwdMemAluCount = j.value("fwd_mem_alu", (long long int)0);
+
+	if (j.contains("instruction_mix"))
+	{
+		std::map<uint8_t, long long int> m;
+		for (auto& [key, val] : j["instruction_mix"].items())
+			m[(uint8_t)std::stoul(key)] = val.get<long long int>();
+		imix.setMap(m);
+	}
 }

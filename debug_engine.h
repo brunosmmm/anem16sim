@@ -8,6 +8,7 @@
 
 #include "cpu.h"
 #include "instrset.h"
+#include "snapshot.h"
 #include <set>
 #include <vector>
 #include <string>
@@ -136,6 +137,10 @@ public:
 
 	// Memory write
 	void writeMemory(addr_t addr, data_t value);
+
+	// Snapshots
+	void saveSnapshot(const std::string& path, const std::string& programFile = "");
+	void loadSnapshot(const std::string& path);
 
 	// Control
 	void setTrace(bool enabled);

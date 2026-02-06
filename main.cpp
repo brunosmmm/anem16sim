@@ -10,6 +10,8 @@
 #include "debug_server.h"
 #include "disasm.h"
 #include "except.h"
+#include "trace.h"
+#include "snapshot.h"
 #include <iostream>
 #include <iomanip>
 #include <cstring>
@@ -18,12 +20,14 @@
 static void printUsage(const char* prog)
 {
 	std::cerr << "Usage: " << prog << " [options] <program>" << std::endl;
-	std::cerr << "  -d        Interactive debug mode" << std::endl;
-	std::cerr << "  -r [port] Remote debug server (JSON-RPC over ZMQ, default port 6808)" << std::endl;
-	std::cerr << "  -t        Enable execution trace" << std::endl;
-	std::cerr << "  -s        Print statistics on exit" << std::endl;
-	std::cerr << "  -m N      Set max cycles (default 10000)" << std::endl;
-	std::cerr << "  -h        Show help" << std::endl;
+	std::cerr << "  -d          Interactive debug mode" << std::endl;
+	std::cerr << "  -r [port]   Remote debug server (JSON-RPC over ZMQ, default port 6808)" << std::endl;
+	std::cerr << "  -t          Enable execution trace" << std::endl;
+	std::cerr << "  -T <file>   Write HW-compatible trace to file" << std::endl;
+	std::cerr << "  -o <file>   Save JSON state snapshot on completion" << std::endl;
+	std::cerr << "  -s          Print statistics on exit" << std::endl;
+	std::cerr << "  -m N        Set max cycles (default 10000)" << std::endl;
+	std::cerr << "  -h          Show help" << std::endl;
 }
 
 int main(int argc, char *argv[])
@@ -35,6 +39,8 @@ int main(int argc, char *argv[])
 	bool statsMode = false;
 	unsigned int maxCycles = 10000;
 	const char* progFile = nullptr;
+	const char* hwTraceFile = nullptr;
+	const char* snapshotFile = nullptr;
 
 	// Parse arguments
 	for (int i = 1; i < argc; i++)
@@ -59,6 +65,26 @@ int main(int argc, char *argv[])
 			traceMode = true;
 		else if (strcmp(argv[i], "-s") == 0)
 			statsMode = true;
+		else if (strcmp(argv[i], "-T") == 0)
+		{
+			if (i + 1 < argc)
+				hwTraceFile = argv[++i];
+			else
+			{
+				std::cerr << "-T requires a file argument" << std::endl;
+				return 1;
+			}
+		}
+		else if (strcmp(argv[i], "-o") == 0)
+		{
+			if (i + 1 < argc)
+				snapshotFile = argv[++i];
+			else
+			{
+				std::cerr << "-o requires a file argument" << std::endl;
+				return 1;
+			}
+		}
 		else if (strcmp(argv[i], "-m") == 0)
 		{
 			if (i + 1 < argc)
@@ -117,6 +143,18 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	// Set up HW trace writer if requested
+	TraceWriter traceWriter;
+	if (hwTraceFile)
+	{
+		if (!traceWriter.open(hwTraceFile))
+		{
+			std::cerr << "Could not open trace file: " << hwTraceFile << std::endl;
+			return 1;
+		}
+		cpu.setTraceWriter(&traceWriter);
+	}
+
 	if (remoteMode)
 	{
 		ANEMDebugServer server(cpu, remotePort);
@@ -152,6 +190,20 @@ int main(int argc, char *argv[])
 		// Dump final state
 		cpu.dumpRegisters();
 		cpu.dumpMemory(0, 16);
+	}
+
+	// Finish HW trace (writes RF/SR/END)
+	if (traceWriter.isOpen())
+	{
+		traceWriter.finish(cpu);
+		traceWriter.close();
+	}
+
+	// Save JSON snapshot if requested
+	if (snapshotFile)
+	{
+		snapshot::saveToFile(cpu, snapshotFile, progFile ? progFile : "");
+		std::cerr << "Snapshot saved to " << snapshotFile << std::endl;
 	}
 
 	if (statsMode)

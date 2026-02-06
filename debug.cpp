@@ -313,6 +313,42 @@ void ANEMDebugger::cmdStats()
 	engine.dumpFullStats(std::cout);
 }
 
+void ANEMDebugger::cmdSave(const std::vector<std::string>& args)
+{
+	if (args.size() < 2)
+	{
+		std::cout << "Usage: save <file>" << std::endl;
+		return;
+	}
+	try
+	{
+		engine.saveSnapshot(args[1]);
+		std::cout << "Snapshot saved to " << args[1] << std::endl;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Error saving snapshot: " << e.what() << std::endl;
+	}
+}
+
+void ANEMDebugger::cmdLoad(const std::vector<std::string>& args)
+{
+	if (args.size() < 2)
+	{
+		std::cout << "Usage: load <file>" << std::endl;
+		return;
+	}
+	try
+	{
+		engine.loadSnapshot(args[1]);
+		std::cout << "Snapshot loaded from " << args[1] << std::endl;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Error loading snapshot: " << e.what() << std::endl;
+	}
+}
+
 void ANEMDebugger::cmdReset()
 {
 	engine.reset();
@@ -334,6 +370,8 @@ void ANEMDebugger::cmdHelp()
 	std::cout << "  p              Show pipeline state" << std::endl;
 	std::cout << "  t [on|off]     Toggle execution trace" << std::endl;
 	std::cout << "  stats          Show statistics" << std::endl;
+	std::cout << "  save <file>    Save state snapshot (JSON)" << std::endl;
+	std::cout << "  load <file>    Load state snapshot (JSON)" << std::endl;
 	std::cout << "  reset          Reset CPU" << std::endl;
 	std::cout << "  q              Quit" << std::endl;
 	std::cout << "Addresses can be decimal or hex (0x prefix)." << std::endl;
@@ -393,6 +431,10 @@ void ANEMDebugger::run()
 				cmdTrace(tokens);
 			else if (cmd == "stats")
 				cmdStats();
+			else if (cmd == "save")
+				cmdSave(tokens);
+			else if (cmd == "load")
+				cmdLoad(tokens);
 			else if (cmd == "reset")
 				cmdReset();
 			else

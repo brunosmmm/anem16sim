@@ -19,6 +19,8 @@ sources = [
   'main.cpp',
   'mem.cpp',
   'regbnk.cpp',
+  'snapshot.cpp',
+  'trace.cpp',
   'periph/mac.cpp',
   'stats/stats.cpp',
 ]

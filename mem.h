@@ -65,6 +65,11 @@ public:
 
 	// Peripheral enumeration
 	std::vector<std::pair<addr_t, std::string>> listPeripherals() const;
+
+	// Direct access (bypass peripheral dispatch, for snapshot iteration)
+	uint32_t getSize() const { return size; }
+	data_t readDirect(addr_t addr) const { return (addr < size) ? dmem[addr] : 0; }
+	void writeDirect(addr_t addr, data_t val) { if (addr < size) dmem[addr] = val; }
 };
 
 ///Instruction memory for ANEM

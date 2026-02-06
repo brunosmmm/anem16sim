@@ -145,6 +145,10 @@ json ANEMDebugServer::dispatch(const std::string& method, const json& params,
 		return jsonrpc::makeResponse(id, handleReset());
 	if (method == "status")
 		return jsonrpc::makeResponse(id, handleStatus());
+	if (method == "snapshot.save")
+		return jsonrpc::makeResponse(id, handleSnapshotSave(params));
+	if (method == "snapshot.load")
+		return jsonrpc::makeResponse(id, handleSnapshotLoad(params));
 
 	return jsonrpc::makeError(id, -32601, "Method not found: " + method);
 }
@@ -360,6 +364,22 @@ json ANEMDebugServer::handleStatus()
 		{"pc", toHex(s.pc)},
 		{"cycle", s.cycle}
 	};
+}
+
+json ANEMDebugServer::handleSnapshotSave(const json& params)
+{
+	std::string path = params.at("path").get<std::string>();
+	std::string program = params.value("program", std::string());
+	engine.saveSnapshot(path, program);
+	return json{{"path", path}};
+}
+
+json ANEMDebugServer::handleSnapshotLoad(const json& params)
+{
+	std::string path = params.at("path").get<std::string>();
+	engine.loadSnapshot(path);
+	auto regs = engine.getRegisters();
+	return json{{"path", path}, {"pc", toHex(regs.pc)}};
 }
 
 // ---- Simulation worker thread ----

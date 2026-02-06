@@ -13,6 +13,7 @@
 #include <map>
 #include <iostream>
 #include <string>
+#include <nlohmann/json.hpp>
 
 class ANEMInstructionCounters
 {
@@ -25,6 +26,8 @@ public:
 	long long int getTotal() const;
 	void reset(void) { this->instructionCountByOpcode.clear(); }
 	void dump(std::ostream& out) const;
+	const std::map<uint8_t, long long int>& getMap() const { return instructionCountByOpcode; }
+	void setMap(const std::map<uint8_t, long long int>& m) { instructionCountByOpcode = m; }
 };
 
 class ANEMCounters
@@ -66,6 +69,13 @@ public:
 	long long int getForwardMemAluCount() const { return fwdMemAluCount; }
 
 	void dumpStats(std::ostream& out) const;
+
+	// JSON serialization
+	nlohmann::json toJson() const;
+	void fromJson(const nlohmann::json& j);
+
+	// Instruction mix access for serialization
+	const std::map<uint8_t, long long int>& getInstructionMix() const { return imix.getMap(); }
 };
 
 

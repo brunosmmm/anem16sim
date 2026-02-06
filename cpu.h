@@ -13,6 +13,7 @@
 #include "regbnk.h"
 #include "alu.h"
 #include "stats/stats.h"
+#include "trace.h"
 #include <functional>
 
 #define GPR_COUNT 16
@@ -197,6 +198,7 @@ private:
 
 	// Trace
 	TraceCallback traceCallback;
+	TraceWriter* traceWriter = nullptr;
 
 	// Cycle counter for programEnd (non-static)
 	unsigned long long totalCycles = 0;
@@ -242,6 +244,7 @@ public:
 
 	// Trace support
 	void setTraceCallback(TraceCallback cb) { traceCallback = cb; }
+	void setTraceWriter(TraceWriter* tw) { traceWriter = tw; }
 
 	// Statistics
 	void dumpStats(std::ostream& out) const;
@@ -249,6 +252,45 @@ public:
 
 	// Memory access logging
 	ANEMDataMemory& getDataMemory() { return dmem; }
+
+	// State write accessors (for snapshot restore)
+	void setPC(addr_t p) { pc = p; }
+	void setHI(data_t h) { reghi = h; }
+	void setLO(data_t l) { reglo = l; }
+	void writeRegister(uint8_t reg, data_t val) { regbnk.r_write(reg, val); }
+	void setFetchToDecode(const f2d& r) { fetch_to_decode = r; }
+	void setDecodeToExec(const d2e& r) { decode_to_exec = r; }
+	void setExecToMem(const e2m& r) { exec_to_mem = r; }
+	void setMemToWB(const m2w& r) { mem_to_wb = r; }
+	void setStallState(bool sif, bool sid, bool sex, bool smem, bool swb, bool smaster, unsigned int counter) {
+		p_stall_if = sif; p_stall_id = sid; p_stall_ex = sex;
+		p_stall_mem = smem; p_stall_wb = swb; p_stall_master = smaster; stallCounter = counter;
+	}
+	void setForwardingState(bool aa, bool ab, bool ma, bool mb) {
+		fwd_alu_alua = aa; fwd_alu_alub = ab; fwd_mem_alua = ma; fwd_mem_alub = mb;
+	}
+	void setHaltDetection(unsigned long long tc, addr_t lpc, addr_t ppc, unsigned int spc, int dc) {
+		totalCycles = tc; lastPC = lpc; prevPC = ppc; samePCCount = spc; drainCycles = dc;
+	}
+	bool getFwEnable() const { return fw_enable; }
+	unsigned int getMaxCycles() const { return maxCycles; }
+	unsigned long long getTotalCycles() const { return totalCycles; }
+	addr_t getLastPC() const { return lastPC; }
+	addr_t getPrevPC() const { return prevPC; }
+	unsigned int getSamePCCount() const { return samePCCount; }
+	int getDrainCycles() const { return drainCycles; }
+	bool getStallIF() const { return p_stall_if; }
+	bool getStallID() const { return p_stall_id; }
+	bool getStallEX() const { return p_stall_ex; }
+	bool getStallMEM() const { return p_stall_mem; }
+	bool getStallWB() const { return p_stall_wb; }
+	bool getStallMaster() const { return p_stall_master; }
+	unsigned int getStallCounter() const { return stallCounter; }
+	bool getFwdAluAluA() const { return fwd_alu_alua; }
+	bool getFwdAluAluB() const { return fwd_alu_alub; }
+	bool getFwdMemAluA() const { return fwd_mem_alua; }
+	bool getFwdMemAluB() const { return fwd_mem_alub; }
+	ANEMCounters& getCountersMut() { return counters; }
 };
 
 

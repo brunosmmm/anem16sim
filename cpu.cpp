@@ -651,6 +651,10 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 			//write to memory
 			this->dmem.write(e.alu_out.value,e.rega_out);
 
+			// HW trace: log memory write
+			if (this->traceWriter)
+				this->traceWriter->memoryWrite(e.alu_out.value, e.rega_out);
+
 		} else
 		{
 			//reads from memory

@@ -4,6 +4,7 @@
  */
 
 #include "debug_engine.h"
+#include "snapshot.h"
 #include "disasm.h"
 
 DebugEngine::DebugEngine(ANEMCPU& cpu, bool traceOn)
@@ -278,6 +279,19 @@ void DebugEngine::writeMemory(addr_t addr, data_t value)
 void DebugEngine::setTrace(bool enabled)
 {
 	traceEnabled = enabled;
+}
+
+// Snapshots
+
+void DebugEngine::saveSnapshot(const std::string& path, const std::string& programFile)
+{
+	snapshot::saveToFile(cpu, path, programFile);
+}
+
+void DebugEngine::loadSnapshot(const std::string& path)
+{
+	snapshot::loadFromFile(cpu, path);
+	halted = false;
 }
 
 void DebugEngine::reset()
