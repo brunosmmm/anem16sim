@@ -8,16 +8,16 @@
       {
         "hash": "f0e215b24e468abfef692c30d4ae1c83e701bdb2",
         "hash_short": "f0e215b",
-        "linked_at": "2026-02-06T14:12:34.115245+00:00",
+        "linked_at": "2026-02-06T14:12:34.156595+00:00",
         "message": "fix(cpu): SIM-BUG-10..15 \u2014 ALU, M1 decode, JAL, JR, and halt fixes\n\nFix 6 simulator bugs found durin"
       }
     ],
-    "last_activity": "2026-02-06T14:12:34.115245+00:00"
+    "last_activity": "2026-02-06T14:12:34.156595+00:00"
   },
-  "entity_id": "ann_031223_3e7cky9f4179",
-  "lamport_clock": 31,
-  "operation_id": "op_20260206_141234_d21f1667",
+  "entity_id": "ann_011955_3e7ckyd28bb8",
+  "lamport_clock": 32,
+  "operation_id": "op_20260206_141234_2976e178",
   "operation_type": "annotation_update",
   "parent_operation": null,
-  "timestamp": "2026-02-06T14:12:34.122962+00:00"
+  "timestamp": "2026-02-06T14:12:34.163545+00:00"
 }
