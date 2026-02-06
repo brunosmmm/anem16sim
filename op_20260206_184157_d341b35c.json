@@ -1,0 +1,29 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [
+      "ann_180942_3e7ckyb2ceca",
+      "ann_031223_3e7cky9f4179"
+    ],
+    "code_commit": "f9a59f8cde39d731f9a65e534465ab324b851a12",
+    "code_commit_message": "fix(cpu): SIM-BUG-17 persistent Z flag register matching hardware p_z_en",
+    "files": [
+      "alu.cpp",
+      "cpu.cpp",
+      "cpu.h"
+    ],
+    "tasks_linked": [
+      "task_183114_70b5cf",
+      "task_182302_0b152b"
+    ]
+  },
+  "entity_id": null,
+  "lamport_clock": 70,
+  "operation_id": "op_20260206_184157_d341b35c",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T18:41:57.562718+00:00"
+}
