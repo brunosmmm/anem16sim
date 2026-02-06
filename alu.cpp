@@ -93,7 +93,9 @@ ANEMAluOut ANEMAlu::operate(ANEMAluOp op, uint8_t shamt, ANEMAluFunc func, data_
 	}
 
 	//set flags
-	if (aout.value == 0)
+	// Hardware gates Z updates: only R-type and S-type update the Z register.
+	// Non-ALU instructions (LIL, LIU, LW, SW, JAL, etc.) preserve previous Z.
+	if ((op == aluR || op == aluS) && aout.value == 0)
 		aout.flags |= ANEM_ALU_Z;
 
 	return aout;

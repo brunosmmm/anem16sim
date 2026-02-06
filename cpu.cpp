@@ -617,6 +617,15 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 		if (d.mem_write && (d.fwd_alu_alua || d.fwd_mem_alua))
 			tomem.rega_out = d.fwd_alua;
 
+		// Forward register value for LIL/LIU partial byte writes.
+		// Hardware does direct partial assignment (no read needed), but the
+		// simulator's read-modify-write needs rega_out to reflect the true
+		// register value. Without this, back-to-back LIU+LIL to the same
+		// register causes LIL's forwarding chain to use a stale base value.
+		if ((d.reg_ctl == regLoadBYTELower || d.reg_ctl == regLoadBYTEUpper) &&
+		    (d.fwd_alu_alua || d.fwd_mem_alua))
+			tomem.rega_out = d.fwd_alua;
+
 	} else
 	{
 
@@ -699,13 +708,16 @@ void ANEMCPU::p_writeback(struct m2w m)
 		this->regbnk.r_write(m.rega_sel,m.mem_out);
 		break;
 	case regLoadBYTELower:
-		regval = this->regbnk.r_read(m.rega_sel);
+		// Use pipeline rega_out (updated by forwarding in EX) instead of
+		// regbnk.r_read(). Hardware does direct partial assignment; this
+		// ensures back-to-back LIU+LIL sees the correct upper byte.
+		regval = m.rega_out;
 		regval &= 0xFF00;
 		regval |= m.imm_val;
 		this->regbnk.r_write(m.rega_sel,regval);
 		break;
 	case regLoadBYTEUpper:
-		regval = this->regbnk.r_read(m.rega_sel);
+		regval = m.rega_out;
 		regval &= 0x00FF;
 		regval |= ((data_t)m.imm_val) << sizeof(data_t)*4;
 		this->regbnk.r_write(m.rega_sel,regval);
@@ -715,8 +727,9 @@ void ANEMCPU::p_writeback(struct m2w m)
 
 	case regPC:
 		// SIM-BUG-1 fix: JAL must write return address to R15
-		// Hardware: regbnk_ctl "101" writes PC_IN to register 15
-		this->regbnk.r_write(15, m.savedpc + 1);
+		// Hardware: regbnk_ctl "101" writes PC_IN (= next_inst_addr + 1 = JAL_addr + 2)
+		// savedpc is the JAL instruction address, so +2 skips both JAL and delay slot.
+		this->regbnk.r_write(15, m.savedpc + 2);
 		break;
 	case regLoadHI:
 		// MFHI: move HI register to GPR (pipeline-captured value, same as HW)
@@ -867,8 +880,8 @@ data_t ANEMCPU::getFwdValFromEX(void)
 		break;
 
 	case regPC:
-		// JAL: forward saved PC + 1 (return address written to R15)
-		return this->exec_to_mem.savedpc + 1;
+		// JAL: forward saved PC + 2 (return address written to R15)
+		return this->exec_to_mem.savedpc + 2;
 
 	case regLoadHI:
 		return this->exec_to_mem.hiout;
@@ -907,7 +920,7 @@ data_t ANEMCPU::getFwdValFromMEM(void)
 		return this->mem_to_wb.mem_out;
 
 	case regPC:
-		return this->mem_to_wb.savedpc + 1;
+		return this->mem_to_wb.savedpc + 2;
 
 	case regLoadHI:
 		return this->mem_to_wb.hiout;
