@@ -1,0 +1,23 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "commit_refs": [
+      {
+        "hash": "17f759f9ebb3112956bebd22ffd7fea644259053",
+        "hash_short": "17f759f",
+        "linked_at": "2026-02-06T15:12:31.655058+00:00",
+        "message": "feat: Remote Control Debug API: JSON-RPC over ZMQ wit..."
+      }
+    ],
+    "last_activity": "2026-02-06T15:12:31.655058+00:00"
+  },
+  "entity_id": "ann_031223_3e7cky9f4179",
+  "lamport_clock": 38,
+  "operation_id": "op_20260206_151231_62525c5f",
+  "operation_type": "annotation_update",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T15:12:31.659051+00:00"
+}
