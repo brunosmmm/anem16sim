@@ -1,0 +1,22 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "scope": "gotcha",
+    "tags": [
+      "bugs",
+      "todo",
+      "pipeline",
+      "known-issues"
+    ],
+    "text": "## Key Patterns and Gotchas\n\n- Simulation runs for hardcoded 100 cycles (cpu.cpp:638 programEnd()) \u2014 no proper halt detection\n- Pipeline forwarding is toggled by constructor bool `fw_enable`; when disabled, stalls are inserted but logic is incomplete (TODO at cpu.cpp:480)\n- ANEMMemMappedPeripheral base class methods are non-virtual \u2014 MAC uses `using` declaration to shadow, not override\n- Missing `break` in switch at cpu.cpp:286 \u2014 M1 opcode case falls through to default\n- BHLEQ branch flag is set in decode but never checked in fetch for jump resolution\n- regPC case in writeback (cpu.cpp:567) computes `regval` but never writes it to the register bank\n- Build: plain Makefile, `make sim` produces the binary, no install/test targets"
+  },
+  "entity_id": "know_010725_3e7cky9c5cd3",
+  "lamport_clock": 4,
+  "operation_id": "op_20260206_010725_4704a0d6",
+  "operation_type": "knowledge_add",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T01:07:25.117870+00:00"
+}
