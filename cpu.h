@@ -161,6 +161,11 @@ private:
 	data_t reghi;
 	data_t reglo;
 
+	// Persistent Z flag register (hardware: p_alu_mem_z_2, gated by p_z_en).
+	// Only updates on R-type or S-type ALU operations; non-ALU instructions
+	// (LIL, LIU, LW, etc.) preserve the previous value.
+	bool z_flag = false;
+
 	//pipeline stages
         struct f2d p_fetch(void);
 	struct d2e p_decode(struct f2d i);
@@ -273,6 +278,8 @@ public:
 	void setHaltDetection(unsigned long long tc, addr_t lpc, addr_t ppc, unsigned int spc, int dc) {
 		totalCycles = tc; lastPC = lpc; prevPC = ppc; samePCCount = spc; drainCycles = dc;
 	}
+	bool getZFlag() const { return z_flag; }
+	void setZFlag(bool z) { z_flag = z; }
 	bool getFwEnable() const { return fw_enable; }
 	unsigned int getMaxCycles() const { return maxCycles; }
 	unsigned long long getTotalCycles() const { return totalCycles; }

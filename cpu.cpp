@@ -75,6 +75,9 @@ void ANEMCPU::reset(void)
 	//reset counters
 	this->counters.reset();
 
+	// Reset persistent Z flag
+	this->z_flag = false;
+
 	// Reset halt-detection state
 	this->totalCycles = 0;
 	this->lastPC = 0;
@@ -142,11 +145,19 @@ void ANEMCPU::clockCycle(void)
 
 	//execute (ALU)
 	ereg = this->p_execute(this->decode_to_exec);
+	// Save ALU op before decode_to_exec is overwritten — needed for Z flag gating
+	ANEMAluOp executed_alu_ctl = this->decode_to_exec.alu_ctl;
 	this->decode_to_exec = dreg;
 
 	//memory
 	mreg = this->p_mem(this->exec_to_mem);
 	this->exec_to_mem = ereg;
+
+	// Update persistent Z flag register (hardware: p_alu_mem_z_2, gated by p_z_en).
+	// Only R-type and S-type ALU ops update the Z register; non-ALU instructions
+	// (LIL, LIU, LW, SW, JAL, etc.) preserve the previous Z value.
+	if (!this->p_stall_ex && (executed_alu_ctl == aluR || executed_alu_ctl == aluS))
+		this->z_flag = (ereg.alu_out.flags & ANEM_ALU_Z) != 0;
 
 	//writeback
 	this->p_writeback(this->mem_to_wb);
@@ -187,11 +198,11 @@ struct f2d ANEMCPU::p_fetch(void)
 		npc = fetchpc + 1;
 	} else if (this->decode_to_exec.bz_flag)
 	{
-		// SIM-BUG-7 fix: Resolve BZ condition here using exec_to_mem Z flag.
-		// At this point BZ is in EX stage (decode_to_exec), and exec_to_mem
-		// holds the ALU result from instruction N-1 (matching hardware's
-		// p_alu_mem_z_2 which is checked when BZ reaches ALU stage).
-		if (this->exec_to_mem.alu_out.flags & ANEM_ALU_Z)
+		// SIM-BUG-7 fix: Resolve BZ condition here using persistent Z flag.
+		// Hardware has a registered Z (p_alu_mem_z_2) gated by p_z_en —
+		// only R/S type ops update it. Non-ALU instructions preserve Z.
+		// Using this->z_flag matches that behavior.
+		if (this->z_flag)
 		{
 			fetchpc = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(this->decode_to_exec.bz_offset));
 			instr = this->imem.fetch(fetchpc);
