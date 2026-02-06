@@ -1,0 +1,31 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "complexity_factors": [
+      "investigation",
+      "multi_stage_pipeline",
+      "special_registers"
+    ],
+    "perceived_complexity": 0.6,
+    "priority": "medium",
+    "tags": [
+      "test_hilo",
+      "MFHI",
+      "MFLO",
+      "HI_LO",
+      "M1",
+      "deferred"
+    ],
+    "text": "test_hilo: MFHI/MFLO, LHI/LLO, and AIS tests fail\n\nMUL tests pass (addr 4: 0x002A, addr 5: 0x2710 \u2014 correct).\nBut HI/LO register manipulation tests all fail:\n- addr 0: expected 0x1234 (LHH+LHL \u2192 HI, MFHI \u2192 GPR), got 0x0000\n- addr 1: expected 0x5678 (LLH+LLL \u2192 LO, MFLO \u2192 GPR), got 0x0000\n- addr 2: expected 0xAAAA (MTHI+MFHI), got 0x0034\n- addr 3: expected 0xBBBB (MTLO+MFLO), got 0x0000\n- addr 6: expected 0x0019 (AIS), got 0x0000\n- addr 7: expected 0x003C (AIS accumulate), got 0x0000\n\nSuspects: cpu.cpp p_execute() and p_mem() HI/LO handling \u2014 LHH/LHL/LLL/LLH may not be writing HI/LO correctly, MFHI/MFLO may not be reading them back, AIS accumulation logic may be wrong.\nPath to trace: M1 opcode \u2192 hictl/loctl in p_decode \u2192 HI/LO write in p_execute/p_mem \u2192 MFHI/MFLO readback in p_decode/p_execute.\n\nBlocked by HW changes: MFHI/MFLO not implemented in anem16pipe (B2), needs HW fix before cross-validation.",
+    "type": "bug"
+  },
+  "entity_id": "ann_141553_3e7cky1d68ab",
+  "lamport_clock": 33,
+  "operation_id": "op_20260206_141553_47ff8a02",
+  "operation_type": "annotation_create",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T14:15:53.312581+00:00"
+}
