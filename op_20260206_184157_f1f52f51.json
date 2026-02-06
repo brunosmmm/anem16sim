@@ -8,16 +8,16 @@
       {
         "hash": "f9a59f8cde39d731f9a65e534465ab324b851a12",
         "hash_short": "f9a59f8",
-        "linked_at": "2026-02-06T18:41:57.572837+00:00",
+        "linked_at": "2026-02-06T18:41:57.601928+00:00",
         "message": "fix(cpu): SIM-BUG-17 persistent Z flag register matching hardware p_z_en"
       }
     ],
-    "last_activity": "2026-02-06T18:41:57.572837+00:00"
+    "last_activity": "2026-02-06T18:41:57.601928+00:00"
   },
-  "entity_id": "ann_180942_3e7ckyb2ceca",
-  "lamport_clock": 71,
-  "operation_id": "op_20260206_184157_b506872d",
+  "entity_id": "ann_031223_3e7cky9f4179",
+  "lamport_clock": 72,
+  "operation_id": "op_20260206_184157_f1f52f51",
   "operation_type": "annotation_update",
   "parent_operation": null,
-  "timestamp": "2026-02-06T18:41:57.576621+00:00"
+  "timestamp": "2026-02-06T18:41:57.605555+00:00"
 }
