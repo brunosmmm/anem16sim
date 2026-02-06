@@ -8,16 +8,16 @@
       {
         "hash": "ee25e2c31ae0f22d3bc2124da683d583b714032f",
         "hash_short": "ee25e2c",
-        "linked_at": "2026-02-06T16:41:12.548952+00:00",
+        "linked_at": "2026-02-06T16:41:12.576188+00:00",
         "message": "feat: add HW-compatible trace output and JSON state snapshots\n\nAdd TraceWriter (-T flag) that emits "
       }
     ],
-    "last_activity": "2026-02-06T16:41:12.548952+00:00"
+    "last_activity": "2026-02-06T16:41:12.576188+00:00"
   },
-  "entity_id": "ann_031223_3e7cky9f4179",
-  "lamport_clock": 52,
-  "operation_id": "op_20260206_164112_d789a780",
+  "entity_id": "ann_011955_3e7ckyd28bb8",
+  "lamport_clock": 53,
+  "operation_id": "op_20260206_164112_72f78ed2",
   "operation_type": "annotation_update",
   "parent_operation": null,
-  "timestamp": "2026-02-06T16:41:12.553730+00:00"
+  "timestamp": "2026-02-06T16:41:12.580156+00:00"
 }
