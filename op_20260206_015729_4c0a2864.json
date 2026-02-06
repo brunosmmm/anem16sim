@@ -1,0 +1,35 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [
+      "ann_011955_3e7ckyd28bb8",
+      "ann_011230_3e7ckyd9db0b"
+    ],
+    "code_commit": "d3d1de429bd5dadd38bfdc24ac6086150b76973a",
+    "code_commit_message": "feat(cpu): align simulator with hardware pipeline design\n\nFix critical pipeline bugs (JAL writeback, BHLEQ branch, J sign extension,\nM1 fallthrough, BZ_T/BZ_N opcodes, MFHI/MFLO), add bubble injection during\nstalls, SW store data forwarding, LIU/LIL byte forwarding, virtual peripherals,\npointer-based peripheral attachment, and meson build system.\n\nAll 9 anem16pipe basic tests passing.",
+    "files": [
+      ".gitignore",
+      "cpu.cpp",
+      "cpu.h",
+      "instrset.h",
+      "main.cpp",
+      "mem.cpp",
+      "mem.h",
+      "periph.h",
+      "periph/mac.h"
+    ],
+    "tasks_linked": [
+      "task_013614_042d11",
+      "task_012103_0a5936"
+    ]
+  },
+  "entity_id": null,
+  "lamport_clock": 11,
+  "operation_id": "op_20260206_015729_4c0a2864",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T01:57:29.732619+00:00"
+}
