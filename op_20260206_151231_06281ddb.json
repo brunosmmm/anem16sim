@@ -8,16 +8,16 @@
       {
         "hash": "17f759f9ebb3112956bebd22ffd7fea644259053",
         "hash_short": "17f759f",
-        "linked_at": "2026-02-06T15:12:31.655058+00:00",
+        "linked_at": "2026-02-06T15:12:31.680863+00:00",
         "message": "feat: Remote Control Debug API: JSON-RPC over ZMQ wit..."
       }
     ],
-    "last_activity": "2026-02-06T15:12:31.655058+00:00"
+    "last_activity": "2026-02-06T15:12:31.680863+00:00"
   },
-  "entity_id": "ann_031223_3e7cky9f4179",
-  "lamport_clock": 38,
-  "operation_id": "op_20260206_151231_62525c5f",
+  "entity_id": "ann_031118_3e7cky6dda98",
+  "lamport_clock": 39,
+  "operation_id": "op_20260206_151231_06281ddb",
   "operation_type": "annotation_update",
   "parent_operation": null,
-  "timestamp": "2026-02-06T15:12:31.659051+00:00"
+  "timestamp": "2026-02-06T15:12:31.684561+00:00"
 }
