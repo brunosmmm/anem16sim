@@ -151,13 +151,15 @@ std::string disassemble(const ANEMInstruction& i)
     case ANEM_OPCODE_M1: {
         // M1 sub-function is in bits[11:8] (rega field), not bits[3:0]
         std::string fn = m1FuncName(i.rega);
+        // MFHI/MFLO/MTHI/MTLO: register is in bits[3:0] (func), not bits[11:8] (rega)
+        std::string rd = regName(i.func);
         switch (i.rega) {
         case ANEM_M1FUNC_MFHI:
         case ANEM_M1FUNC_MFLO:
-            return fn + " " + ra;
+            return fn + " " + rd;
         case ANEM_M1FUNC_MTHI:
         case ANEM_M1FUNC_MTLO:
-            return fn + " " + ra;
+            return fn + " " + rd;
         case ANEM_M1FUNC_LHL:
         case ANEM_M1FUNC_LHH:
         case ANEM_M1FUNC_LLL:

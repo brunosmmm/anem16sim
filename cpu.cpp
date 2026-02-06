@@ -458,11 +458,23 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	}
 
 	//register selectors
-	toexec.rega_sel = i.ireg.rega;
+	// M1 MFHI/MFLO/MTHI/MTLO: dest/src register is in bits[3:0] (func), not bits[11:8] (rega)
+	// Hardware: regbnk_sela uses instruction(3 downto 0) for these M1 sub-functions
+	if (i.ireg.opcode == ANEM_OPCODE_M1 &&
+	    (i.ireg.rega == ANEM_M1FUNC_MFHI || i.ireg.rega == ANEM_M1FUNC_MFLO ||
+	     i.ireg.rega == ANEM_M1FUNC_MTHI || i.ireg.rega == ANEM_M1FUNC_MTLO))
+	{
+		toexec.rega_sel = i.ireg.func;
+		toexec.rega_out = this->regbnk.r_read(i.ireg.func);
+	}
+	else
+	{
+		toexec.rega_sel = i.ireg.rega;
+		toexec.rega_out = this->regbnk.r_read(i.ireg.rega);
+	}
 	toexec.regb_sel = i.ireg.regb;
 
-	//read registers
-	toexec.rega_out = this->regbnk.r_read(i.ireg.rega);
+	//read registers (regb always from bits[7:4])
 	toexec.regb_out = this->regbnk.r_read(i.ireg.regb);
 
 	//read hi/lo
@@ -688,11 +700,11 @@ void ANEMCPU::p_writeback(struct m2w m)
 		this->regbnk.r_write(15, m.savedpc + 1);
 		break;
 	case regLoadHI:
-		// MFHI: move HI register to GPR
+		// MFHI: move HI register to GPR (pipeline-captured value, same as HW)
 		this->regbnk.r_write(m.rega_sel, m.hiout);
 		break;
 	case regLoadLO:
-		// MFLO: move LO register to GPR
+		// MFLO: move LO register to GPR (pipeline-captured value, same as HW)
 		this->regbnk.r_write(m.rega_sel, m.loout);
 		break;
 	default:
@@ -705,13 +717,16 @@ void ANEMCPU::p_writeback(struct m2w m)
 	ais_result = (((dword_t)m.hiout << 16) | ((dword_t)m.loout)) + (sdword_t)m.imm_val;
 
 	//special registers
+	// For loadLower/loadUpper (LHL/LHH/LLL/LLH): use live register value,
+	// not pipeline-captured m.hiout/m.loout. Hardware's RegANEMB preserves
+	// its own current output bits, so back-to-back LHH+LHL works correctly.
 	switch(m.hictl)
 	  {
 	    case loadLower:
-	      this->reghi = (m.hiout & 0xFF00) | m.imm_val;
+	      this->reghi = (this->reghi & 0xFF00) | m.imm_val;
 	      break;
 	    case loadUpper:
-	      this->reghi = (m.hiout & 0x00FF) | (data_t)m.imm_val << sizeof(data_t)*4;
+	      this->reghi = (this->reghi & 0x00FF) | (data_t)m.imm_val << sizeof(data_t)*4;
 	      break;
 	    case doAIH_AIL:
 	      this->reghi = m.hiout + (sdata_t)m.imm_val;
@@ -732,10 +747,10 @@ void ANEMCPU::p_writeback(struct m2w m)
 	switch(m.loctl)
 	  {
 	    case loadLower:
-	      this->reglo = (m.loout & 0xFF00) | m.imm_val;
+	      this->reglo = (this->reglo & 0xFF00) | m.imm_val;
 	      break;
 	    case loadUpper:
-	      this->reglo = (m.loout & 0x00FF) | (data_t)m.imm_val << sizeof(data_t)*4;
+	      this->reglo = (this->reglo & 0x00FF) | (data_t)m.imm_val << sizeof(data_t)*4;
 	      break;
 	    case doAIH_AIL:
 	      this->reglo = m.loout + (sdata_t)m.imm_val;
