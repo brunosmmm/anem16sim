@@ -1,0 +1,18 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "resolution": {
+      "summary": "LIL/LIU WB now uses pipeline rega_out instead of regbnk.r_read; EX stage updates rega_out with forwarded value for partial byte writes",
+      "type": "fixed"
+    }
+  },
+  "entity_id": "ann_180933_3e7cky6933e0",
+  "lamport_clock": 65,
+  "operation_id": "op_20260206_182745_0516f5c5",
+  "operation_type": "annotation_resolve",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T18:27:45.531117+00:00"
+}
