@@ -161,11 +161,42 @@ struct f2d ANEMCPU::p_fetch(void)
 	}
 
 
-	if (this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag || this->decode_to_exec.bz_flag || this->decode_to_exec.bhleq_flag)
+	if (this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag)
 	{
-		//jumps
+		//unconditional jumps (J, JAL, JR) — dest already computed in decode
 		instr = this->imem.fetch(this->decode_to_exec.j_dest);
 		npc = this->decode_to_exec.j_dest + 1;
+	} else if (this->decode_to_exec.bz_flag)
+	{
+		// SIM-BUG-7 fix: Resolve BZ condition here using exec_to_mem Z flag.
+		// At this point BZ is in EX stage (decode_to_exec), and exec_to_mem
+		// holds the ALU result from instruction N-1 (matching hardware's
+		// p_alu_mem_z_2 which is checked when BZ reaches ALU stage).
+		if (this->exec_to_mem.alu_out.flags & ANEM_ALU_Z)
+		{
+			addr_t dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(this->decode_to_exec.bz_offset));
+			instr = this->imem.fetch(dest);
+			npc = dest + 1;
+		}
+		else
+		{
+			instr = this->imem.fetch(this->pc);
+			npc = this->pc + 1;
+		}
+	} else if (this->decode_to_exec.bhleq_flag)
+	{
+		// BHLEQ: branch if HI == LO, resolved here for same timing reason
+		if (this->reghi == this->reglo)
+		{
+			addr_t dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(this->decode_to_exec.bz_offset));
+			instr = this->imem.fetch(dest);
+			npc = dest + 1;
+		}
+		else
+		{
+			instr = this->imem.fetch(this->pc);
+			npc = this->pc + 1;
+		}
 	} else
 	{
 		//normal operation
@@ -207,6 +238,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	toexec.jr_flag = false;
 	toexec.bz_flag = false;
 	toexec.bhleq_flag = false;
+	toexec.bz_offset = 0;
 	toexec.hictl = noOp;
 	toexec.loctl = noOp;
 	toexec.bubble = false;
@@ -479,19 +511,13 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			// resize(signed(jdest(11 downto 0)),16) in ifetch.vhd)
 			toexec.j_dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(i.ireg.address));
 
-		} else if (toexec.bz_flag == true) //BZ jump
+		} else if (toexec.bz_flag == true || toexec.bhleq_flag == true)
 		{
-			//calculate immediately
-			if (this->exec_to_mem.alu_out.flags & ANEM_ALU_Z)
-				toexec.j_dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(i.ireg.address));
-			else
-				toexec.j_dest = this->pc + 1;
-		} else if (toexec.bhleq_flag == true) //BHLEQ: branch if HI == LO
-		{
-			if (this->reghi == this->reglo)
-				toexec.j_dest = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(i.ireg.address));
-			else
-				toexec.j_dest = this->pc + 1;
+			// SIM-BUG-7 fix: Don't resolve BZ/BHLEQ condition here.
+			// Store the branch offset; condition is resolved in p_fetch()
+			// one cycle later, when exec_to_mem holds the correct Z flag
+			// (from instruction N-1, matching hardware's p_alu_mem_z_2).
+			toexec.bz_offset = i.ireg.address;
 		}
 
 	//immediate

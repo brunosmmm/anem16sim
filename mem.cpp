@@ -134,12 +134,14 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 
 	//hex file format regex
 	std::regex ihex("^:([a-fA-F0-9]{2})([a-fA-F0-9]{4})([a-fA-F0-9]{2})([a-fA-F0-9]*)([a-fA-F0-9]{2})");
-	//binary format regex
+	//binary format regex (address + instruction)
 	std::regex bin("([01]+)[\\t ]+([01]{16})$");
+	//plain sequential binary (instruction only, no address)
+	std::regex plainbin("^([01]{16})$");
 
 	//line count
 	unsigned int i = 0;
-	bool ihex_f = false, bin_f = false;
+	bool ihex_f = false, bin_f = false, plainbin_f = false;
 
 	if (file.is_open() == false)
 	{
@@ -173,6 +175,14 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 
 					//bin format
 					bin_f = true;
+				}
+				else
+				{
+					std::regex_match(line,sm,plainbin);
+					if (sm.size() > 0)
+					{
+						plainbin_f = true;
+					}
 				}
 
 			}
@@ -238,6 +248,13 @@ void ANEMInstructionMemory::loadProgram(std::string fileName)
 				//second group is the instruction
 				this->imem[i_addr] = ANEMInstruction(std::stoi(sm[2].str(),nullptr,2));
 
+			}
+			else if (plainbin_f)
+			{
+				//plain sequential binary — instruction only, address = line number
+				std::regex_match(line,sm,plainbin);
+				if (sm.size() > 0)
+					this->imem[i] = ANEMInstruction(std::stoi(sm[1].str(),nullptr,2));
 			}
 			else
 			{

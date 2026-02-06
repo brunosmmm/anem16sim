@@ -59,6 +59,7 @@ struct d2e
 	bool bhleq_flag;
 
 	addr_t j_dest; //for J, JR and JAL
+	uint16_t bz_offset; // raw 12-bit branch offset (resolved in fetch, not decode)
 
 	bool fwd_alu_alua;
 	bool fwd_alu_alub;
