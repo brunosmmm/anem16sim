@@ -1,0 +1,21 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "branch": "master",
+    "content": "# Hardware-Simulator Alignment Implementation\n\n## What Was Done\n\nImplemented comprehensive fixes to align anem16sim (C++ simulator) with anem16pipe (VHDL hardware).\n\n### Phase 1: Critical Bug Fixes\n- **SIM-BUG-1 (JAL)**: Added `r_write(15, savedpc+1)` \u2014 was computing but never writing\n- **SIM-BUG-2 (BHLEQ)**: Added `bhleq_flag` check in fetch + HI==LO destination computation\n- **SIM-BUG-3 (J sign-ext)**: Added `sign_ext_12()` helper for 12-bit\u219216-bit sign extension\n- **SIM-BUG-4 (BZ_T/BZ_N)**: Added opcodes 0x9, 0xA alongside BZ in decode\n- **SIM-BUG-5 (M1 fallthrough)**: Added `break` before `default`, set reg_ctl/alu_ctl in M1 case, added MFHI\u2192regLoadHI and MFLO\u2192regLoadLO\n\n### Phase 2: Pipeline Behavior\n- **SIM-BUG-6 (Bubble insertion)**: When `p_stall_if`, inject NOP bubble into decode output (prevents double-decode of stalled instruction)\n- **SIM-BUG-7 (BZ timing)**: Documented as known mismatch (not fixed \u2014 would require fundamental pipeline restructuring)\n\n### Phase 3: Peripheral System\n- Made `read()`/`write()` virtual in `ANEMMemMappedPeripheral`\n- Added virtual destructor\n- Changed `attachPeripheral` to take pointer (fixed object slicing + dangling pointer)\n- Added `override` on MAC peripheral methods\n\n### Phase 4: Build System + Misc\n- Created `meson.build` (C++11, all sources)\n- Improved `programEnd()`: infinite loop detection instead of hardcoded 100 cycles\n- Added forwarding support for regPC, regLoadHI, regLoadLO in both getFwdValFromEX and getFwdValFromMEM\n- Fixed `regLoadBYTEUpper` mask from `0xFF00` to `0x00FF` in forwarding functions\n- Added missing initialization of `bhleq_flag`, `hictl`, `loctl`, `bubble` in decode\n\n### Files Changed\n- `cpu.cpp` \u2014 bulk of fixes (all SIM-BUGs, forwarding, bubble, halt detection)\n- `cpu.h` \u2014 attachPeripheral signature change\n- `instrset.h` \u2014 BZ_T, BZ_N opcodes\n- `periph.h` \u2014 virtual methods + destructor\n- `periph/mac.h` \u2014 override, removed `using` workaround\n- `mem.h`, `mem.cpp` \u2014 attachPeripheral pointer parameter\n- `main.cpp` \u2014 pass &mac instead of mac\n- `meson.build` \u2014 new build system\n- `.gitignore` \u2014 builddir/, sim\n\n### Not Fixed (Documented)\n- **HW-BUG-1**: ALU_OP encoding swapped R/S in hardware (simulator is correct)\n- **HW-BUG-2**: Forwarding priority inverted in hardware (simulator is correct)\n- **HW-BUG-3**: SGT missing from hardware ALU mux (simulator implements it)\n- **HW-BUG-6**: Pipeline flush hardcoded to '0' in hardware (simulator has no flush either)\n- **SIM-BUG-7**: BZ timing mismatch \u2014 simulator checks Z from instr-2, hardware checks instr-1\n",
+    "context": "Completed implementation of hardware-simulator alignment plan",
+    "repository_id": "github.com/brunosmmm/anem16sim",
+    "session_id": null,
+    "session_type": "Software Development",
+    "title": "Hardware-Simulator Alignment Implementation"
+  },
+  "entity_id": "20260206_0132_hardware-simulator-alignment-implementation",
+  "lamport_clock": 9,
+  "operation_id": "op_20260206_013259_7a7874c2",
+  "operation_type": "checkpoint_save",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T01:32:59.191252+00:00"
+}
