@@ -1,0 +1,31 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "complexity_factors": [
+      "new_subsystem",
+      "external_dependency",
+      "protocol_design",
+      "async_events"
+    ],
+    "perceived_complexity": 0.8,
+    "priority": "medium",
+    "tags": [
+      "debugging",
+      "remote-control",
+      "json-rpc",
+      "zmq",
+      "feature"
+    ],
+    "text": "Plan for remote control debugging mode with JSON-RPC API over ZMQ\n\nDesign and implement a remote debugging interface that exposes all interactive debugger capabilities via a JSON-RPC 2.0 API transported over ZeroMQ (ZMQ).\n\nRequirements:\n- Implement all commands available in the interactive debug mode (step, continue, breakpoints, watchpoints, register/memory inspection, pipeline state, disassembly, statistics, reset, trace toggle)\n- Use JSON-RPC 2.0 protocol for request/response format\n- Use ZMQ (REQ/REP or ROUTER/DEALER pattern) as the transport layer\n- Allow external tools/GUIs to connect and control the simulator remotely\n- Consider async notifications for breakpoint hits, watchpoint triggers, halt detection\n\nCommands to expose (matching interactive mode):\n- step(n) \u2014 step N cycles\n- continue() \u2014 run until breakpoint/halt\n- set_breakpoint(addr) / delete_breakpoint(addr) / list_breakpoints()\n- set_watchpoint(addr) / delete_watchpoint(addr)\n- read_registers() / read_register(n)\n- read_memory(start, count) / write_memory(addr, value)\n- disassemble(start, count)\n- pipeline_state()\n- toggle_trace(on/off)\n- get_statistics()\n- reset()\n- get_status() \u2014 halted, running, cycle count, PC\n\nDependencies: libzmq, nlohmann/json (or similar lightweight JSON library)",
+    "type": "idea"
+  },
+  "entity_id": "ann_031118_3e7cky6dda98",
+  "lamport_clock": 25,
+  "operation_id": "op_20260206_031118_0e038bf7",
+  "operation_type": "annotation_create",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T03:11:18.653392+00:00"
+}
