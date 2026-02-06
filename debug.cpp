@@ -1,6 +1,6 @@
 /*
  * @file debug.cpp
- * @brief ANEM16 interactive debugger
+ * @brief ANEM16 interactive debugger (REPL frontend)
  */
 
 #include "debug.h"
@@ -10,8 +10,16 @@
 #include <sstream>
 
 ANEMDebugger::ANEMDebugger(ANEMCPU& cpu, bool traceOn)
-	: cpu(cpu), traceEnabled(traceOn)
+	: engine(cpu, traceOn)
 {
+	// Set trace callback to print to stdout
+	engine.setTraceCallback([](unsigned long long cycle, addr_t pc,
+	                           const std::string& asmText) {
+		std::cout << "[" << std::setw(6) << cycle << "] "
+		          << "PC=0x" << std::hex << std::setfill('0') << std::setw(4) << pc
+		          << " " << std::setfill(' ') << std::dec
+		          << asmText << std::endl;
+	});
 }
 
 std::vector<std::string> ANEMDebugger::tokenize(const std::string& line) const
@@ -31,132 +39,92 @@ addr_t ANEMDebugger::parseAddr(const std::string& s) const
 	return (addr_t)std::stoul(s, nullptr, 10);
 }
 
-void ANEMDebugger::printTrace(unsigned long long cycle, addr_t pc,
-                               const ANEMInstruction& instr)
-{
-	std::cout << "[" << std::setw(6) << cycle << "] "
-	          << "PC=0x" << std::hex << std::setfill('0') << std::setw(4) << pc
-	          << " " << std::setfill(' ') << std::dec
-	          << disassemble(instr) << std::endl;
-}
-
-bool ANEMDebugger::checkBreakpoints()
-{
-	return breakpoints.count(cpu.getPC()) > 0;
-}
-
-bool ANEMDebugger::checkWatchpoints()
-{
-	// Watchpoints check: look at the last memory access log entries
-	if (watchpoints.empty()) return false;
-
-	const auto& log = cpu.getDataMemory().getAccessLog();
-	if (log.empty()) return false;
-
-	// Check if any recent access hit a watchpoint
-	// We check the last entry since we clear after each step
-	const auto& last = log.back();
-	return watchpoints.count(last.address) > 0;
-}
-
 void ANEMDebugger::cmdStep(unsigned int n)
 {
-	for (unsigned int i = 0; i < n; i++)
+	auto result = engine.step(n);
+
+	switch (result.reason)
 	{
-		if (cpu.programEnd())
+	case StopReason::Halted:
+		std::cout << "Program halted." << std::endl;
+		break;
+	case StopReason::Breakpoint:
+		std::cout << "Breakpoint hit at PC=0x" << std::hex << std::setw(4)
+		          << std::setfill('0') << result.pc << std::dec
+		          << std::setfill(' ') << std::endl;
+		break;
+	case StopReason::Watchpoint:
+		if (result.watchAccess)
 		{
-			std::cout << "Program halted." << std::endl;
-			halted = true;
-			return;
-		}
-
-		cpu.getDataMemory().clearAccessLog();
-		cpu.clockCycle();
-
-		if (traceEnabled)
-			printTrace(cpu.getCycleCount(), cpu.getPC(),
-			           cpu.getFetchToDecode().ireg);
-
-		if (i < n - 1 && checkBreakpoints())
-		{
-			std::cout << "Breakpoint hit at PC=0x" << std::hex << std::setw(4)
-			          << std::setfill('0') << cpu.getPC() << std::dec
-			          << std::setfill(' ') << std::endl;
-			return;
-		}
-
-		if (!watchpoints.empty() && checkWatchpoints())
-		{
-			const auto& last = cpu.getDataMemory().getAccessLog().back();
-			std::cout << "Watchpoint hit: " << (last.write ? "write" : "read")
+			auto& wa = *result.watchAccess;
+			std::cout << "Watchpoint hit: " << (wa.write ? "write" : "read")
 			          << " at addr=0x" << std::hex << std::setw(4)
-			          << std::setfill('0') << last.address
-			          << " val=0x" << std::setw(4) << last.value
+			          << std::setfill('0') << wa.address
+			          << " val=0x" << std::setw(4) << wa.value
 			          << std::dec << std::setfill(' ') << std::endl;
-			return;
 		}
+		break;
+	case StopReason::None:
+		break;
 	}
 }
 
 void ANEMDebugger::cmdContinue()
 {
-	// Enable access logging for watchpoints
-	bool hadLog = !watchpoints.empty();
-	if (hadLog)
-		cpu.getDataMemory().setAccessLog(true);
-
-	while (!cpu.programEnd())
+	// Run in a tight loop using runBatch with large batch size
+	while (true)
 	{
-		cpu.getDataMemory().clearAccessLog();
-		cpu.clockCycle();
+		auto result = engine.runBatch(10000);
 
-		if (traceEnabled)
-			printTrace(cpu.getCycleCount(), cpu.getPC(),
-			           cpu.getFetchToDecode().ireg);
-
-		if (checkBreakpoints())
+		if (result.reason == StopReason::Breakpoint)
 		{
 			std::cout << "Breakpoint hit at PC=0x" << std::hex << std::setw(4)
-			          << std::setfill('0') << cpu.getPC() << std::dec
+			          << std::setfill('0') << result.pc << std::dec
 			          << std::setfill(' ') << std::endl;
 			return;
 		}
 
-		if (hadLog && checkWatchpoints())
+		if (result.reason == StopReason::Watchpoint)
 		{
-			const auto& last = cpu.getDataMemory().getAccessLog().back();
-			std::cout << "Watchpoint hit: " << (last.write ? "write" : "read")
-			          << " at addr=0x" << std::hex << std::setw(4)
-			          << std::setfill('0') << last.address
-			          << " val=0x" << std::setw(4) << last.value
-			          << std::dec << std::setfill(' ') << std::endl;
+			if (result.watchAccess)
+			{
+				auto& wa = *result.watchAccess;
+				std::cout << "Watchpoint hit: " << (wa.write ? "write" : "read")
+				          << " at addr=0x" << std::hex << std::setw(4)
+				          << std::setfill('0') << wa.address
+				          << " val=0x" << std::setw(4) << wa.value
+				          << std::dec << std::setfill(' ') << std::endl;
+			}
+			return;
+		}
+
+		if (result.reason == StopReason::Halted)
+		{
+			std::cout << "Program halted." << std::endl;
 			return;
 		}
 	}
-
-	std::cout << "Program halted." << std::endl;
-	halted = true;
 }
 
 void ANEMDebugger::cmdBreakpoint(const std::vector<std::string>& args)
 {
 	if (args.size() < 2)
 	{
-		// List breakpoints
-		if (breakpoints.empty())
+		auto bps = engine.listBreakpoints();
+		if (bps.empty())
 		{
 			std::cout << "No breakpoints set." << std::endl;
 			return;
 		}
 		std::cout << "Breakpoints:" << std::endl;
-		for (addr_t bp : breakpoints)
+		for (addr_t bp : bps)
 			std::cout << "  0x" << std::hex << std::setfill('0')
 			          << std::setw(4) << bp << std::dec
 			          << std::setfill(' ') << std::endl;
 		return;
 	}
 	addr_t addr = parseAddr(args[1]);
-	breakpoints.insert(addr);
+	engine.addBreakpoint(addr);
 	std::cout << "Breakpoint set at 0x" << std::hex << std::setfill('0')
 	          << std::setw(4) << addr << std::dec
 	          << std::setfill(' ') << std::endl;
@@ -170,7 +138,7 @@ void ANEMDebugger::cmdDeleteBreakpoint(const std::vector<std::string>& args)
 		return;
 	}
 	addr_t addr = parseAddr(args[1]);
-	if (breakpoints.erase(addr))
+	if (engine.removeBreakpoint(addr))
 		std::cout << "Breakpoint deleted." << std::endl;
 	else
 		std::cout << "No breakpoint at that address." << std::endl;
@@ -180,21 +148,21 @@ void ANEMDebugger::cmdWatchpoint(const std::vector<std::string>& args)
 {
 	if (args.size() < 2)
 	{
-		if (watchpoints.empty())
+		auto wps = engine.listWatchpoints();
+		if (wps.empty())
 		{
 			std::cout << "No watchpoints set." << std::endl;
 			return;
 		}
 		std::cout << "Watchpoints:" << std::endl;
-		for (addr_t wp : watchpoints)
+		for (addr_t wp : wps)
 			std::cout << "  0x" << std::hex << std::setfill('0')
 			          << std::setw(4) << wp << std::dec
 			          << std::setfill(' ') << std::endl;
 		return;
 	}
 	addr_t addr = parseAddr(args[1]);
-	watchpoints.insert(addr);
-	cpu.getDataMemory().setAccessLog(true);
+	engine.addWatchpoint(addr);
 	std::cout << "Watchpoint set at 0x" << std::hex << std::setfill('0')
 	          << std::setw(4) << addr << std::dec
 	          << std::setfill(' ') << std::endl;
@@ -208,11 +176,9 @@ void ANEMDebugger::cmdDeleteWatchpoint(const std::vector<std::string>& args)
 		return;
 	}
 	addr_t addr = parseAddr(args[1]);
-	if (watchpoints.erase(addr))
+	if (engine.removeWatchpoint(addr))
 	{
 		std::cout << "Watchpoint deleted." << std::endl;
-		if (watchpoints.empty())
-			cpu.getDataMemory().setAccessLog(false);
 	}
 	else
 		std::cout << "No watchpoint at that address." << std::endl;
@@ -229,24 +195,25 @@ void ANEMDebugger::cmdRegisters(const std::vector<std::string>& args)
 			return;
 		}
 		std::cout << regName(reg) << " = 0x" << std::hex << std::setfill('0')
-		          << std::setw(4) << cpu.readRegister(reg) << std::dec
+		          << std::setw(4) << engine.getRegister(reg) << std::dec
 		          << std::setfill(' ') << std::endl;
 		return;
 	}
 
-	std::cout << "PC  = 0x" << std::hex << std::setfill('0') << std::setw(4) << cpu.getPC() << std::endl;
+	auto regs = engine.getRegisters();
+	std::cout << "PC  = 0x" << std::hex << std::setfill('0') << std::setw(4) << regs.pc << std::endl;
 	for (int i = 0; i < 16; i++)
 	{
 		std::cout << std::left << std::setw(4) << std::setfill(' ') << regName(i)
 		          << std::right << "= 0x" << std::hex << std::setfill('0') << std::setw(4)
-		          << cpu.readRegister(i) << std::setfill(' ') << std::dec;
+		          << regs.gpr[i] << std::setfill(' ') << std::dec;
 		if ((i % 4) == 3)
 			std::cout << std::endl;
 		else
 			std::cout << "  ";
 	}
-	std::cout << std::right << "HI  = 0x" << std::hex << std::setfill('0') << std::setw(4) << cpu.getHI()
-	          << "  LO  = 0x" << std::setw(4) << cpu.getLO() << std::dec
+	std::cout << std::right << "HI  = 0x" << std::hex << std::setfill('0') << std::setw(4) << regs.hi
+	          << "  LO  = 0x" << std::setw(4) << regs.lo << std::dec
 	          << std::setfill(' ') << std::endl;
 }
 
@@ -260,10 +227,11 @@ void ANEMDebugger::cmdMemory(const std::vector<std::string>& args)
 	addr_t start = parseAddr(args[1]);
 	addr_t count = (args.size() >= 3) ? (addr_t)std::stoul(args[2]) : 16;
 
-	for (addr_t i = start; i < start + count; i++)
+	auto entries = engine.getMemory(start, count);
+	for (auto& e : entries)
 	{
-		std::cout << "  [0x" << std::hex << std::setfill('0') << std::setw(4) << i
-		          << "] = 0x" << std::setw(4) << cpu.readDataMem(i)
+		std::cout << "  [0x" << std::hex << std::setfill('0') << std::setw(4) << e.address
+		          << "] = 0x" << std::setw(4) << e.value
 		          << std::dec << std::setfill(' ') << std::endl;
 	}
 }
@@ -278,86 +246,76 @@ void ANEMDebugger::cmdDisassemble(const std::vector<std::string>& args)
 	addr_t start = parseAddr(args[1]);
 	addr_t count = (args.size() >= 3) ? (addr_t)std::stoul(args[2]) : 16;
 
-	for (addr_t i = start; i < start + count; i++)
+	auto entries = engine.disassemble(start, count);
+	for (auto& e : entries)
 	{
-		ANEMInstruction instr = cpu.readInstrMem(i);
-		std::string marker = (i == cpu.getPC()) ? " >> " : "    ";
-		std::cout << marker << "[0x" << std::hex << std::setfill('0') << std::setw(4) << i
+		std::string marker = e.current ? " >> " : "    ";
+		std::cout << marker << "[0x" << std::hex << std::setfill('0') << std::setw(4) << e.address
 		          << "] " << std::setfill(' ') << std::dec
-		          << disassemble(instr) << std::endl;
+		          << e.asmText << std::endl;
 	}
 }
 
 void ANEMDebugger::cmdPipeline()
 {
-	auto& f = cpu.getFetchToDecode();
-	auto& d = cpu.getDecodeToExec();
-	auto& e = cpu.getExecToMem();
-	auto& m = cpu.getMemToWB();
+	auto p = engine.getPipeline();
 
-	std::cout << "=== Pipeline (cycle " << cpu.getCycleCount() << ") ===" << std::endl;
+	std::cout << "=== Pipeline (cycle " << p.cycle << ") ===" << std::endl;
 
-	// IF stage: what was just fetched
-	std::cout << "  IF:  [0x" << std::hex << std::setfill('0') << std::setw(4) << f.pc
+	std::cout << "  IF:  [0x" << std::hex << std::setfill('0') << std::setw(4) << p.ifStage.pc
 	          << "] " << std::setfill(' ') << std::dec;
-	if (f.bubble) std::cout << "<bubble>";
-	else std::cout << disassemble(f.ireg);
+	if (p.ifStage.bubble) std::cout << "<bubble>";
+	else std::cout << p.ifStage.asmText;
 	std::cout << std::endl;
 
-	// ID stage
-	std::cout << "  ID:  [0x" << std::hex << std::setfill('0') << std::setw(4) << d.pc
+	std::cout << "  ID:  [0x" << std::hex << std::setfill('0') << std::setw(4) << p.idStage.pc
 	          << "] " << std::setfill(' ') << std::dec;
-	if (d.bubble) std::cout << "<bubble>";
-	else std::cout << disassemble(d.ireg);
-	// Show forwarding info
-	if (d.fwd_alu_alua || d.fwd_alu_alub)
+	if (p.idStage.bubble) std::cout << "<bubble>";
+	else std::cout << p.idStage.asmText;
+	if (p.idStage.fwdAluAlu)
 		std::cout << "  [fwd: ALU->ALU]";
-	if (d.fwd_mem_alua || d.fwd_mem_alub)
+	if (p.idStage.fwdMemAlu)
 		std::cout << "  [fwd: MEM->ALU]";
 	std::cout << std::endl;
 
-	// EX stage
-	std::cout << "  EX:  [0x" << std::hex << std::setfill('0') << std::setw(4) << e.pc
+	std::cout << "  EX:  [0x" << std::hex << std::setfill('0') << std::setw(4) << p.exStage.pc
 	          << "] " << std::setfill(' ') << std::dec;
-	if (e.bubble) std::cout << "<bubble>";
-	else std::cout << disassemble(e.ireg);
+	if (p.exStage.bubble) std::cout << "<bubble>";
+	else std::cout << p.exStage.asmText;
 	std::cout << std::endl;
 
-	// MEM stage
-	std::cout << "  MEM: [0x" << std::hex << std::setfill('0') << std::setw(4) << m.pc
+	std::cout << "  MEM: [0x" << std::hex << std::setfill('0') << std::setw(4) << p.memStage.pc
 	          << "] " << std::setfill(' ') << std::dec;
-	if (m.bubble) std::cout << "<bubble>";
-	else std::cout << disassemble(m.ireg);
+	if (p.memStage.bubble) std::cout << "<bubble>";
+	else std::cout << p.memStage.asmText;
 	std::cout << std::endl;
 
-	// Stall status
-	std::cout << "  Stall: " << (cpu.isStalled() ? "yes" : "none") << std::endl;
+	std::cout << "  Stall: " << (p.stalled ? "yes" : "none") << std::endl;
 }
 
 void ANEMDebugger::cmdTrace(const std::vector<std::string>& args)
 {
 	if (args.size() >= 2)
 	{
-		if (args[1] == "on") traceEnabled = true;
-		else if (args[1] == "off") traceEnabled = false;
+		if (args[1] == "on") engine.setTrace(true);
+		else if (args[1] == "off") engine.setTrace(false);
 		else std::cout << "Usage: t [on|off]" << std::endl;
 	}
 	else
 	{
-		traceEnabled = !traceEnabled;
+		engine.setTrace(!engine.getTrace());
 	}
-	std::cout << "Trace " << (traceEnabled ? "enabled" : "disabled") << std::endl;
+	std::cout << "Trace " << (engine.getTrace() ? "enabled" : "disabled") << std::endl;
 }
 
 void ANEMDebugger::cmdStats()
 {
-	cpu.dumpStats(std::cout);
+	engine.dumpFullStats(std::cout);
 }
 
 void ANEMDebugger::cmdReset()
 {
-	cpu.reset();
-	halted = false;
+	engine.reset();
 	std::cout << "CPU reset." << std::endl;
 }
 
@@ -387,7 +345,7 @@ void ANEMDebugger::run()
 
 	std::cout << "ANEM16 Debugger. Type 'h' for help." << std::endl;
 	std::cout << "Program loaded, PC=0x" << std::hex << std::setfill('0')
-	          << std::setw(4) << cpu.getPC() << std::dec
+	          << std::setw(4) << engine.getRegisters().pc << std::dec
 	          << std::setfill(' ') << std::endl;
 
 	while (true)

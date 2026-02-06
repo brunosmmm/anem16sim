@@ -1,24 +1,19 @@
 /*
  * @file debug.h
- * @brief ANEM16 interactive debugger
+ * @brief ANEM16 interactive debugger (REPL frontend)
  */
 
 #ifndef DEBUG_H_
 #define DEBUG_H_
 
-#include "cpu.h"
-#include <set>
+#include "debug_engine.h"
 #include <string>
 #include <vector>
 
 class ANEMDebugger
 {
 private:
-	ANEMCPU& cpu;
-	std::set<addr_t> breakpoints;
-	std::set<addr_t> watchpoints;
-	bool traceEnabled;
-	bool halted = false;
+	DebugEngine engine;
 
 	// Command parsing
 	std::vector<std::string> tokenize(const std::string& line) const;
@@ -39,14 +34,6 @@ private:
 	void cmdStats();
 	void cmdReset();
 	void cmdHelp();
-
-	// Trace callback
-	void printTrace(unsigned long long cycle, addr_t pc,
-	                const ANEMInstruction& instr);
-
-	// Check stop conditions (breakpoints, watchpoints)
-	bool checkBreakpoints();
-	bool checkWatchpoints();
 
 public:
 	ANEMDebugger(ANEMCPU& cpu, bool traceOn = false);

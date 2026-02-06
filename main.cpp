@@ -7,6 +7,7 @@
 
 #include "cpu.h"
 #include "debug.h"
+#include "debug_server.h"
 #include "disasm.h"
 #include "except.h"
 #include <iostream>
@@ -18,6 +19,7 @@ static void printUsage(const char* prog)
 {
 	std::cerr << "Usage: " << prog << " [options] <program>" << std::endl;
 	std::cerr << "  -d        Interactive debug mode" << std::endl;
+	std::cerr << "  -r [port] Remote debug server (JSON-RPC over ZMQ, default port 6808)" << std::endl;
 	std::cerr << "  -t        Enable execution trace" << std::endl;
 	std::cerr << "  -s        Print statistics on exit" << std::endl;
 	std::cerr << "  -m N      Set max cycles (default 10000)" << std::endl;
@@ -27,6 +29,8 @@ static void printUsage(const char* prog)
 int main(int argc, char *argv[])
 {
 	bool debugMode = false;
+	bool remoteMode = false;
+	int remotePort = 6808;
 	bool traceMode = false;
 	bool statsMode = false;
 	unsigned int maxCycles = 10000;
@@ -37,6 +41,20 @@ int main(int argc, char *argv[])
 	{
 		if (strcmp(argv[i], "-d") == 0)
 			debugMode = true;
+		else if (strcmp(argv[i], "-r") == 0)
+		{
+			remoteMode = true;
+			// Optional port argument (next arg if it looks like a number)
+			if (i + 1 < argc && argv[i + 1][0] != '-')
+			{
+				try {
+					remotePort = std::stoi(argv[i + 1]);
+					i++;
+				} catch (...) {
+					// Not a number, use default port
+				}
+			}
+		}
 		else if (strcmp(argv[i], "-t") == 0)
 			traceMode = true;
 		else if (strcmp(argv[i], "-s") == 0)
@@ -99,7 +117,12 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (debugMode)
+	if (remoteMode)
+	{
+		ANEMDebugServer server(cpu, remotePort);
+		server.run();
+	}
+	else if (debugMode)
 	{
 		ANEMDebugger dbg(cpu, traceMode);
 		dbg.run();
