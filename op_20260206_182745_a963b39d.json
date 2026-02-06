@@ -1,0 +1,18 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "resolution": {
+      "summary": "Z flag now only updated for aluR/aluS operations, matching hardware gate behavior",
+      "type": "fixed"
+    }
+  },
+  "entity_id": "ann_180942_3e7ckyb2ceca",
+  "lamport_clock": 63,
+  "operation_id": "op_20260206_182745_a963b39d",
+  "operation_type": "annotation_resolve",
+  "parent_operation": null,
+  "timestamp": "2026-02-06T18:27:45.384299+00:00"
+}
