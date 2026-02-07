@@ -1,0 +1,18 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "resolution": {
+      "summary": "Added bz_negate field to d2e pipeline register in simulator. BZ_N now correctly branches when Z=0.",
+      "type": "fixed"
+    }
+  },
+  "entity_id": "ann_211706_3e7cky7acaba",
+  "lamport_clock": 94,
+  "operation_id": "op_20260207_211826_af2095b8",
+  "operation_type": "annotation_resolve",
+  "parent_operation": null,
+  "timestamp": "2026-02-07T21:18:26.009170+00:00"
+}
