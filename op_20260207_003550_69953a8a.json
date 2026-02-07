@@ -1,0 +1,41 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [
+      "ann_180942_3e7ckyb2ceca",
+      "ann_141553_3e7cky1d68ab",
+      "ann_031223_3e7cky9f4179",
+      "ann_011955_3e7ckyd28bb8"
+    ],
+    "code_commit": "c7f385cefcd26a831d18ed610000ceace3e46222",
+    "code_commit_message": "feat(cpu): add stack operations (PUSH/POP/SPRD/SPWR) and ADDI instruction\n\nImplement SP register (reset 0xFFCF) with full pipeline support:\n- PUSH (pre-dec SP, write), POP (read, post-inc SP)\n- SPRD (read SP to GPR), SPWR (write GPR to SP)\n- ADDI Rd, Imm8 (signed immediate add)\n- SP forwarding chain for zero-stall back-to-back stack ops\n- Zero-gap hazard detection for ADDI/PUSH/SPWR\n\nAlso fixes two pre-existing forwarding bugs:\n- SIM-BUG-20: forwarding matched rega_sel without checking reg_ctl != regNOP\n  (fixes test_sort, previously known_fail)\n- SIM-BUG-21: ADDI R-type func decode override (imm bits misread as func code)",
+    "files": [
+      "cpu.cpp",
+      "cpu.h",
+      "debug_engine.cpp",
+      "debug_engine.h",
+      "debug_server.cpp",
+      "disasm.cpp",
+      "instrset.h"
+    ],
+    "tasks_linked": [
+      "task_183114_70b5cf",
+      "task_182302_0b152b",
+      "task_164334_526462",
+      "task_152716_531f92",
+      "task_151705_4e6e2f",
+      "task_133721_1a8d20",
+      "task_015926_8f252c",
+      "task_013614_042d11"
+    ]
+  },
+  "entity_id": null,
+  "lamport_clock": 73,
+  "operation_id": "op_20260207_003550_69953a8a",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-07T00:35:50.251458+00:00"
+}
