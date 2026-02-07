@@ -58,7 +58,7 @@ StepResult DebugEngine::step(unsigned int count)
 		if (traceEnabled && traceCallback)
 		{
 			traceCallback(cpu.getCycleCount(), cpu.getPC(),
-			              ::disassemble(cpu.getFetchToDecode().ireg));
+			              ::disassemble(cpu.getFetchToDecode().ireg, cpu.getFetchToDecode().pc));
 		}
 
 		if (i < count - 1 && checkBreakpoints())
@@ -118,7 +118,7 @@ StepResult DebugEngine::runBatch(unsigned int batchSize)
 		if (traceEnabled && traceCallback)
 		{
 			traceCallback(cpu.getCycleCount(), cpu.getPC(),
-			              ::disassemble(cpu.getFetchToDecode().ireg));
+			              ::disassemble(cpu.getFetchToDecode().ireg, cpu.getFetchToDecode().pc));
 		}
 
 		if (checkBreakpoints())
@@ -219,7 +219,7 @@ std::vector<DisasmEntry> DebugEngine::disassemble(addr_t start, addr_t count) co
 	for (addr_t i = start; i < start + count; i++)
 	{
 		ANEMInstruction instr = cpu.readInstrMem(i);
-		entries.push_back({i, ::disassemble(instr), instr.toWord(), i == cpu.getPC()});
+		entries.push_back({i, ::disassemble(instr, i), instr.toWord(), i == cpu.getPC()});
 	}
 	return entries;
 }
@@ -234,12 +234,12 @@ PipelineResult DebugEngine::getPipeline() const
 	PipelineResult r{};
 	r.cycle = cpu.getCycleCount();
 
-	r.ifStage = {f.pc, f.bubble ? "<bubble>" : ::disassemble(f.ireg), f.bubble};
-	r.idStage = {d.pc, d.bubble ? "<bubble>" : ::disassemble(d.ireg), d.bubble,
+	r.ifStage = {f.pc, f.bubble ? "<bubble>" : ::disassemble(f.ireg, f.pc), f.bubble};
+	r.idStage = {d.pc, d.bubble ? "<bubble>" : ::disassemble(d.ireg, d.pc), d.bubble,
 	             d.fwd_alu_alua || d.fwd_alu_alub,
 	             d.fwd_mem_alua || d.fwd_mem_alub};
-	r.exStage = {e.pc, e.bubble ? "<bubble>" : ::disassemble(e.ireg), e.bubble};
-	r.memStage = {m.pc, m.bubble ? "<bubble>" : ::disassemble(m.ireg), m.bubble};
+	r.exStage = {e.pc, e.bubble ? "<bubble>" : ::disassemble(e.ireg, e.pc), e.bubble};
+	r.memStage = {m.pc, m.bubble ? "<bubble>" : ::disassemble(m.ireg, m.pc), m.bubble};
 	r.stalled = cpu.isStalled();
 
 	return r;

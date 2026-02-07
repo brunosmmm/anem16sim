@@ -6,6 +6,10 @@
 #include "disasm.h"
 #include <sstream>
 #include <iomanip>
+#include <fstream>
+#include <unordered_map>
+
+static std::unordered_map<addr_t, std::string> g_symbols;
 
 std::string regName(uint8_t r)
 {
@@ -193,4 +197,81 @@ std::string disassemble(const ANEMInstruction& i)
     default:
         return "??? (" + hexStr(iword, 4) + ")";
     }
+}
+
+void loadSymbols(const std::string& path)
+{
+    std::ifstream f(path);
+    if (!f.is_open())
+        return;
+
+    g_symbols.clear();
+    std::string name;
+    addr_t addr;
+    while (f >> name >> addr)
+        g_symbols[addr] = name;
+}
+
+void clearSymbols()
+{
+    g_symbols.clear();
+}
+
+std::string lookupSymbol(addr_t addr)
+{
+    auto it = g_symbols.find(addr);
+    if (it != g_symbols.end())
+        return it->second;
+    return {};
+}
+
+static int16_t signExt12(uint16_t val)
+{
+    if (val & 0x800)
+        return (int16_t)(val | 0xF000);
+    return (int16_t)val;
+}
+
+std::string disassemble(const ANEMInstruction& i, addr_t pc)
+{
+    if (g_symbols.empty())
+        return disassemble(i);
+
+    // For branch/jump opcodes, try to resolve the target to a symbol
+    addr_t target;
+    std::string sym;
+    std::string mnemonic;
+
+    switch (i.opcode) {
+    case ANEM_OPCODE_J:
+    case ANEM_OPCODE_JAL:
+        target = (addr_t)((int32_t)pc + 1 + signExt12(i.address));
+        sym = lookupSymbol(target);
+        if (!sym.empty()) {
+            mnemonic = (i.opcode == ANEM_OPCODE_J) ? "J" : "JAL";
+            return mnemonic + " " + sym;
+        }
+        break;
+
+    case ANEM_OPCODE_BZ:
+    case ANEM_OPCODE_BZ_T:
+    case ANEM_OPCODE_BZ_N:
+    case ANEM_OPCODE_BHLEQ:
+        target = (addr_t)((int32_t)pc + 2 + signExt12(i.address));
+        sym = lookupSymbol(target);
+        if (!sym.empty()) {
+            if (i.opcode == ANEM_OPCODE_BZ)        mnemonic = "BZ";
+            else if (i.opcode == ANEM_OPCODE_BZ_T)  mnemonic = "BZ.T";
+            else if (i.opcode == ANEM_OPCODE_BZ_N)  mnemonic = "BZ.N";
+            else                                     mnemonic = "BHLEQ";
+            return mnemonic + " " + sym;
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    // No symbol match — fall through to base disassembly
+    return disassemble(i);
 }

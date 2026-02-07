@@ -25,6 +25,7 @@ static void printUsage(const char* prog)
 	std::cerr << "  -t          Enable execution trace" << std::endl;
 	std::cerr << "  -T <file>   Write HW-compatible trace to file" << std::endl;
 	std::cerr << "  -o <file>   Save JSON state snapshot on completion" << std::endl;
+	std::cerr << "  -S <file>   Load symbol table (.sym) for disassembly" << std::endl;
 	std::cerr << "  -s          Print statistics on exit" << std::endl;
 	std::cerr << "  -m N        Set max cycles (default 10000)" << std::endl;
 	std::cerr << "  -h          Show help" << std::endl;
@@ -41,6 +42,7 @@ int main(int argc, char *argv[])
 	const char* progFile = nullptr;
 	const char* hwTraceFile = nullptr;
 	const char* snapshotFile = nullptr;
+	const char* symFile = nullptr;
 
 	// Parse arguments
 	for (int i = 1; i < argc; i++)
@@ -100,6 +102,16 @@ int main(int argc, char *argv[])
 			printUsage(argv[0]);
 			return 0;
 		}
+		else if (strcmp(argv[i], "-S") == 0)
+		{
+			if (i + 1 < argc)
+				symFile = argv[++i];
+			else
+			{
+				std::cerr << "-S requires a file argument" << std::endl;
+				return 1;
+			}
+		}
 		else if (argv[i][0] == '-')
 		{
 			std::cerr << "Unknown option: " << argv[i] << std::endl;
@@ -143,6 +155,20 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	// Load symbol table
+	if (symFile)
+	{
+		loadSymbols(symFile);
+	}
+	else
+	{
+		// Auto-detect: replace .bin/.contents.txt extension with .sym
+		std::string p(progFile);
+		auto dot = p.rfind('.');
+		if (dot != std::string::npos)
+			loadSymbols(p.substr(0, dot) + ".sym");
+	}
+
 	// Set up HW trace writer if requested
 	TraceWriter traceWriter;
 	if (hwTraceFile)
@@ -171,12 +197,12 @@ int main(int argc, char *argv[])
 		if (traceMode)
 		{
 			cpu.setTraceCallback([](unsigned long long cycle, addr_t pc,
-			                        const ANEMInstruction& instr, const ANEMCPU&) {
+			                        const ANEMInstruction& instr, const ANEMCPU& cpu) {
 				std::cout << "[" << std::setw(6) << cycle << "] "
 				          << "PC=0x" << std::hex << std::setfill('0')
 				          << std::setw(4) << pc << " "
 				          << std::setfill(' ') << std::dec
-				          << disassemble(instr) << std::endl;
+				          << disassemble(instr, cpu.getFetchToDecode().pc) << std::endl;
 			});
 		}
 

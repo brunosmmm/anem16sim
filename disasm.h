@@ -7,10 +7,15 @@
 #define DISASM_H_
 
 #include "instrset.h"
+#include "types.h"
 #include <string>
 #include <cstdint>
 
 std::string disassemble(const ANEMInstruction& i);
+std::string disassemble(const ANEMInstruction& i, addr_t pc);
+void loadSymbols(const std::string& path);
+void clearSymbols();
+std::string lookupSymbol(addr_t addr);
 std::string regName(uint8_t r);
 std::string opcodeName(uint8_t opcode);
 
