@@ -1,0 +1,41 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [
+      "ann_141553_3e7cky1d68ab",
+      "ann_031223_3e7cky9f4179",
+      "ann_011955_3e7ckyd28bb8"
+    ],
+    "code_commit": "bc837d8c76df9e13631e6929c163e667bc0fe17d",
+    "code_commit_message": "feat(disasm): symbol table export and symbol-aware disassembly\n\nAdd .sym file generation to assembler and symbol-resolved disassembly\nto simulator. Branch/jump targets now show label names (e.g., \"JAL DOUBLE\")\ninstead of raw hex when a .sym file is available.",
+    "files": [
+      "disasm.cpp",
+      "main.cpp",
+      "tests/debug_sort.py",
+      "tests/test_branches.asm",
+      "tests/test_fibonacci.asm",
+      "tests/test_hilo.asm",
+      "tests/test_memory.asm",
+      "tests/test_sgt_bz.asm",
+      "tests/test_shifts.asm",
+      "tests/test_sort.asm",
+      "tests/test_subroutine.asm"
+    ],
+    "tasks_linked": [
+      "task_152716_531f92",
+      "task_151705_4e6e2f",
+      "task_133721_1a8d20",
+      "task_015926_8f252c",
+      "task_013614_042d11"
+    ]
+  },
+  "entity_id": null,
+  "lamport_clock": 81,
+  "operation_id": "op_20260207_010717_92aeb60a",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-07T01:07:17.929528+00:00"
+}
