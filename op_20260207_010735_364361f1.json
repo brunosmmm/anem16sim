@@ -1,0 +1,23 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "commit_refs": [
+      {
+        "hash": "6242bfa0ff8b5ba9bb85040694f7f49e9a164bd9",
+        "hash_short": "6242bfa",
+        "linked_at": "2026-02-07T01:07:35.152746+00:00",
+        "message": "feat(disasm): symbol table export and symbol-aware disassembly\n\nAdd .sym file generation to assemble"
+      }
+    ],
+    "last_activity": "2026-02-07T01:07:35.152746+00:00"
+  },
+  "entity_id": "ann_180942_3e7ckyb2ceca",
+  "lamport_clock": 86,
+  "operation_id": "op_20260207_010735_364361f1",
+  "operation_type": "annotation_update",
+  "parent_operation": null,
+  "timestamp": "2026-02-07T01:07:35.156883+00:00"
+}
