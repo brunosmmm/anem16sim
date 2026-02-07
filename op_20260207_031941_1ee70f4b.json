@@ -1,0 +1,23 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "commit_refs": [
+      {
+        "hash": "0038d07fee6b5b1910d1f869b84b91fd01279366",
+        "hash_short": "0038d07",
+        "linked_at": "2026-02-07T03:19:41.121723+00:00",
+        "message": "feat(cpu): add interrupt/exception support (SYSCALL, RETI, EI/DI, MFEPC/MFECA/MTEPC)\n\nImplement cycl"
+      }
+    ],
+    "last_activity": "2026-02-07T03:19:41.121723+00:00"
+  },
+  "entity_id": "ann_180942_3e7ckyb2ceca",
+  "lamport_clock": 90,
+  "operation_id": "op_20260207_031941_1ee70f4b",
+  "operation_type": "annotation_update",
+  "parent_operation": null,
+  "timestamp": "2026-02-07T03:19:41.134405+00:00"
+}
