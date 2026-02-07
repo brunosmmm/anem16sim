@@ -1,0 +1,24 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [
+      "ann_180942_3e7ckyb2ceca"
+    ],
+    "code_commit": "6242bfa0ff8b5ba9bb85040694f7f49e9a164bd9",
+    "code_commit_message": "feat(disasm): symbol table export and symbol-aware disassembly\n\nAdd .sym file generation to assembler and symbol-resolved disassembly\nto simulator. Branch/jump targets now show label names (e.g., \"JAL DOUBLE\")\ninstead of raw hex when a .sym file is available.",
+    "files": [
+      "debug_engine.cpp",
+      "disasm.h"
+    ],
+    "tasks_linked": []
+  },
+  "entity_id": null,
+  "lamport_clock": 85,
+  "operation_id": "op_20260207_010735_653c925e",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-07T01:07:35.145321+00:00"
+}
