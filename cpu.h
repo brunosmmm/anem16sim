@@ -19,6 +19,7 @@
 #define GPR_COUNT 16
 
 enum ANEMHILOOp {loadUpper, loadLower, fromRegister, doAIS, doAIH_AIL, noOp};
+enum ANEMSPCtl { spNone = 0, spPush, spPop, spRead, spWrite };
 
 struct f2d
 {
@@ -81,6 +82,11 @@ struct d2e
 	//saved pc for jal
 	addr_t savedpc;
 
+	//stack pointer
+	ANEMSPCtl sp_ctl;
+	data_t sp_val;
+	bool alu_imm_sel;
+
 	addr_t pc;  // PC of this instruction
 	ANEMInstruction ireg;  // original instruction (for disassembly)
 };
@@ -111,6 +117,11 @@ struct e2m
 
 	addr_t savedpc;
 
+	//stack pointer
+	ANEMSPCtl sp_ctl;
+	data_t sp_new;
+	data_t sp_addr;
+
 	addr_t pc;  // PC of this instruction
 	ANEMInstruction ireg;  // original instruction (for disassembly)
 };
@@ -138,6 +149,10 @@ struct m2w
 
 	addr_t savedpc;
 
+	//stack pointer
+	ANEMSPCtl sp_ctl;
+	data_t sp_new;
+
 	addr_t pc;  // PC of this instruction
 	ANEMInstruction ireg;  // original instruction (for disassembly)
 };
@@ -160,6 +175,7 @@ private:
 	//special registers
 	data_t reghi;
 	data_t reglo;
+	data_t regsp;
 
 	// Persistent Z flag register (hardware: p_alu_mem_z_2, gated by p_z_en).
 	// Only updates on R-type or S-type ALU operations; non-ALU instructions
@@ -215,6 +231,7 @@ private:
 	//helper functions
 	data_t getFwdValFromEX(void);
 	data_t getFwdValFromMEM(void);
+	data_t getForwardedSP(void) const;
 	void insertStalls(unsigned int stallCount) { this->p_stall_if = true; this->stallCounter = stallCount; }
 	void manageStalls(void);
 	bool detectZeroGapHazard(void) const;
@@ -236,6 +253,7 @@ public:
 	addr_t getPC() const { return pc; }
 	data_t getHI() const { return reghi; }
 	data_t getLO() const { return reglo; }
+	data_t getSP() const { return regsp; }
 	const struct f2d& getFetchToDecode() const { return fetch_to_decode; }
 	const struct d2e& getDecodeToExec() const { return decode_to_exec; }
 	const struct e2m& getExecToMem() const { return exec_to_mem; }
@@ -263,6 +281,7 @@ public:
 	void setPC(addr_t p) { pc = p; }
 	void setHI(data_t h) { reghi = h; }
 	void setLO(data_t l) { reglo = l; }
+	void setSP(data_t s) { regsp = s; }
 	void writeRegister(uint8_t reg, data_t val) { regbnk.r_write(reg, val); }
 	void setFetchToDecode(const f2d& r) { fetch_to_decode = r; }
 	void setDecodeToExec(const d2e& r) { decode_to_exec = r; }

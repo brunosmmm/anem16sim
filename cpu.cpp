@@ -50,16 +50,20 @@ void ANEMCPU::reset(void)
 	this->decode_to_exec.alu_ctl = aluNOP;
 	this->decode_to_exec.reg_ctl = regNOP;
 	this->decode_to_exec.bubble = true;
+	this->decode_to_exec.sp_ctl = spNone;
+	this->decode_to_exec.alu_imm_sel = false;
 	this->decode_to_exec.pc = 0;
 	this->decode_to_exec.ireg = ANEM_INSTRUCTION_NOP;
 
 	this->mem_to_wb.reg_ctl = regNOP;
 	this->mem_to_wb.bubble = true;
+	this->mem_to_wb.sp_ctl = spNone;
 	this->mem_to_wb.pc = 0;
 	this->mem_to_wb.ireg = ANEM_INSTRUCTION_NOP;
 
 	this->exec_to_mem.reg_ctl = regNOP;
 	this->exec_to_mem.bubble = true;
+	this->exec_to_mem.sp_ctl = spNone;
 	this->exec_to_mem.pc = 0;
 	this->exec_to_mem.ireg = ANEM_INSTRUCTION_NOP;
 
@@ -74,6 +78,9 @@ void ANEMCPU::reset(void)
 
 	//reset counters
 	this->counters.reset();
+
+	// Reset SP register
+	this->regsp = 0xFFCF;
 
 	// Reset persistent Z flag
 	this->z_flag = false;
@@ -139,6 +146,7 @@ void ANEMCPU::clockCycle(void)
 		dreg.bhleq_flag = false;
 		dreg.hictl = noOp;
 		dreg.loctl = noOp;
+		dreg.sp_ctl = spNone;
 		dreg.bubble = true;
 		this->counters.countBubble();
 	}
@@ -274,6 +282,8 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	toexec.bz_offset = 0;
 	toexec.hictl = noOp;
 	toexec.loctl = noOp;
+	toexec.sp_ctl = spNone;
+	toexec.alu_imm_sel = false;
 	toexec.bubble = false;
 
 	//disable forwarding
@@ -348,6 +358,42 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 		toexec.alu_ctl = aluNOP;
 		toexec.bhleq_flag = true;
 		break;
+	case ANEM_OPCODE_STACK:
+		toexec.alu_ctl = aluNOP;
+		switch(i.ireg.func)
+		{
+		case ANEM_STACKFUNC_PUSH:
+			toexec.reg_ctl = regNOP;
+			toexec.mem_enable = true;
+			toexec.mem_write = true;
+			toexec.sp_ctl = spPush;
+			break;
+		case ANEM_STACKFUNC_POP:
+			toexec.reg_ctl = regLoadMEM;
+			toexec.mem_enable = true;
+			toexec.sp_ctl = spPop;
+			break;
+		case ANEM_STACKFUNC_SPRD:
+			toexec.reg_ctl = regLoadALU;
+			toexec.alu_ctl = aluR;
+			toexec.alu_func = aluADD;
+			toexec.sp_ctl = spRead;
+			break;
+		case ANEM_STACKFUNC_SPWR:
+			toexec.reg_ctl = regNOP;
+			toexec.sp_ctl = spWrite;
+			break;
+		default:
+			toexec.reg_ctl = regNOP;
+			break;
+		}
+		break;
+	case ANEM_OPCODE_ADDI:
+		toexec.reg_ctl = regLoadALU;
+		toexec.alu_ctl = aluR;
+		toexec.alu_func = aluADD;
+		toexec.alu_imm_sel = true;
+		break;
 	case ANEM_OPCODE_M1:
 		toexec.reg_ctl = regNOP;
 		toexec.alu_ctl = aluNOP;
@@ -412,7 +458,9 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	}
 
 	//alu function
-	if (toexec.alu_ctl == aluR)
+	// Skip ALU function decode for ADDI (which uses aluR/ADD but has
+	// the immediate in bits[7:0], not an R-type func in bits[3:0])
+	if (toexec.alu_ctl == aluR && !toexec.alu_imm_sel)
 	{
 		switch(i.ireg.func)
 		{
@@ -512,7 +560,8 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	//detect RAW
 	if ((this->exec_to_mem.reg_ctl != regNOP) || (this->mem_to_wb.reg_ctl != regNOP))
 	{
-		if ((toexec.rega_sel == this->exec_to_mem.rega_sel) && (toexec.rega_sel != 0))
+		if ((this->exec_to_mem.reg_ctl != regNOP) &&
+		    (toexec.rega_sel == this->exec_to_mem.rega_sel) && (toexec.rega_sel != 0))
 		{
 
 			//forward from ALU out to exec
@@ -521,7 +570,8 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			this->counters.countForwardAluAlu();
 
 		}
-		else if ((toexec.rega_sel == this->mem_to_wb.rega_sel) && (toexec.rega_sel != 0))
+		else if ((this->mem_to_wb.reg_ctl != regNOP) &&
+		         (toexec.rega_sel == this->mem_to_wb.rega_sel) && (toexec.rega_sel != 0))
 		{
 			//forward from mem to exec
 			toexec.fwd_mem_alua = true;
@@ -530,7 +580,8 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 
 		}
 
-		if ((toexec.regb_sel == this->exec_to_mem.rega_sel) && (toexec.regb_sel != 0))
+		if ((this->exec_to_mem.reg_ctl != regNOP) &&
+		    (toexec.regb_sel == this->exec_to_mem.rega_sel) && (toexec.regb_sel != 0))
 		{
 
 			//forward from ALU out to exec
@@ -539,7 +590,8 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			this->counters.countForwardAluAlu();
 
 		}
-		else if ((toexec.regb_sel == this->mem_to_wb.rega_sel) && (toexec.regb_sel != 0))
+		else if ((this->mem_to_wb.reg_ctl != regNOP) &&
+		         (toexec.regb_sel == this->mem_to_wb.rega_sel) && (toexec.regb_sel != 0))
 		{
 			//forward from mem to exec
 			toexec.fwd_mem_alub = true;
@@ -548,6 +600,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 
 		}
 	}
+
 
 		//JR JUMP — use forwarded rega value when available
 		if (toexec.jr_flag == true)
@@ -574,6 +627,10 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			// (from instruction N-1, matching hardware's p_alu_mem_z_2).
 			toexec.bz_offset = i.ireg.address;
 		}
+
+	//stack pointer forwarded read
+	if (toexec.sp_ctl != spNone)
+		toexec.sp_val = this->getForwardedSP();
 
 	//immediate
 	toexec.imm_val = i.ireg.byte;
@@ -605,6 +662,7 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 	tomem.hictl = d.hictl;
 	tomem.loctl = d.loctl;
 	tomem.savedpc = d.savedpc;
+	tomem.sp_ctl = d.sp_ctl;
 	tomem.pc = d.pc;
 	tomem.ireg = d.ireg;
 	tomem.bubble = d.bubble;
@@ -645,8 +703,41 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 
 	}
 
+	// SP adder (parallel to main ALU)
+	switch (d.sp_ctl)
+	{
+	case spPush:
+		tomem.sp_new = d.sp_val - 1;
+		tomem.sp_addr = d.sp_val - 1; // pre-decrement: write to SP-1
+		break;
+	case spPop:
+		tomem.sp_new = d.sp_val + 1;
+		tomem.sp_addr = d.sp_val;     // post-increment: read from current SP
+		break;
+	case spWrite:
+		// SPWR: sp_new = forwarded register value
+		tomem.sp_new = aluA;
+		tomem.sp_addr = 0;
+		break;
+	case spRead:
+		// SPRD: ALU computes SP+0
+		aluA = d.sp_val;
+		aluB = 0;
+		tomem.sp_new = d.sp_val;
+		tomem.sp_addr = 0;
+		break;
+	default:
+		tomem.sp_new = 0;
+		tomem.sp_addr = 0;
+		break;
+	}
+
+	// ADDI: ALU_B = sign-extended 8-bit immediate
+	if (d.alu_imm_sel)
+		aluB = (data_t)(int16_t)(int8_t)d.imm_val;
+
 	//memory accesses, must calculate offset. ALU operand A is used for the offset input
-	if (d.mem_enable)
+	if (d.mem_enable && d.sp_ctl == spNone)
 		aluA = d.off_4;
 
 	//ALU operation
@@ -674,6 +765,8 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 	towb.hictl = e.hictl;
 	towb.loctl = e.loctl;
 	towb.savedpc = e.savedpc;
+	towb.sp_ctl = e.sp_ctl;
+	towb.sp_new = e.sp_new;
 	towb.pc = e.pc;
 	towb.ireg = e.ireg;
 	towb.bubble = e.bubble;
@@ -681,19 +774,23 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 	//verify if memory access is done
 	if (e.mem_enable)
 	{
+		// Memory address mux: PUSH/POP use sp_addr, normal LW/SW use alu_out
+		data_t mem_addr = (e.sp_ctl == spPush || e.sp_ctl == spPop)
+		                  ? e.sp_addr : e.alu_out.value;
+
 		if (e.mem_write)
 		{
 			//write to memory
-			this->dmem.write(e.alu_out.value,e.rega_out);
+			this->dmem.write(mem_addr, e.rega_out);
 
 			// HW trace: log memory write
 			if (this->traceWriter)
-				this->traceWriter->memoryWrite(e.alu_out.value, e.rega_out);
+				this->traceWriter->memoryWrite(mem_addr, e.rega_out);
 
 		} else
 		{
 			//reads from memory
-			towb.mem_out = this->dmem.read(e.alu_out.value);
+			towb.mem_out = this->dmem.read(mem_addr);
 		}
 
 	}
@@ -755,6 +852,10 @@ void ANEMCPU::p_writeback(struct m2w m)
 		break;
 
 	}
+
+	// SP register update
+	if (m.sp_ctl == spPush || m.sp_ctl == spPop || m.sp_ctl == spWrite)
+		this->regsp = m.sp_new;
 
 	//calcualte AIS
 	ais_result = (((dword_t)m.hiout << 16) | ((dword_t)m.loout)) + (sdword_t)m.imm_val;
@@ -861,6 +962,46 @@ void ANEMCPU::loadProgram(std::string fileName)
 
 	this->reset();
 
+}
+
+data_t ANEMCPU::getForwardedSP(void) const
+{
+	// SP forwarding chain — priority: decode_to_exec > exec_to_mem > mem_to_wb > regsp
+	// At ID time, decode_to_exec holds the instruction currently in EX (not yet
+	// executed), so we must predict sp_new using the same SP adder logic.
+
+	// Check ALU stage (newest in-flight)
+	ANEMSPCtl ctl1 = this->decode_to_exec.sp_ctl;
+	if (ctl1 == spPush || ctl1 == spPop || ctl1 == spWrite)
+	{
+		// Replicate SP adder: predict what sp_new will be
+		switch (ctl1)
+		{
+		case spPush:  return this->decode_to_exec.sp_val - 1;
+		case spPop:   return this->decode_to_exec.sp_val + 1;
+		case spWrite: {
+			// SPWR uses the forwarded register value (ALU_A path)
+			data_t val = this->decode_to_exec.rega_out;
+			if (this->decode_to_exec.fwd_alu_alua || this->decode_to_exec.fwd_mem_alua)
+				val = this->decode_to_exec.fwd_alua;
+			return val;
+		}
+		default: break;
+		}
+	}
+
+	// Check MEM stage (already computed sp_new)
+	ANEMSPCtl ctl2 = this->exec_to_mem.sp_ctl;
+	if (ctl2 == spPush || ctl2 == spPop || ctl2 == spWrite)
+		return this->exec_to_mem.sp_new;
+
+	// Check WB stage (already computed sp_new)
+	ANEMSPCtl ctl3 = this->mem_to_wb.sp_ctl;
+	if (ctl3 == spPush || ctl3 == spPop || ctl3 == spWrite)
+		return this->mem_to_wb.sp_new;
+
+	// No in-flight SP writer — use committed register
+	return this->regsp;
 }
 
 data_t ANEMCPU::getFwdValFromEX(void)
@@ -1000,6 +1141,14 @@ bool ANEMCPU::detectZeroGapHazard(void) const
 		reads_rega = true; reads_regb = true; break; // rega=data, regb=base
 	case ANEM_OPCODE_JR:
 		reads_rega = true; break; // jump target register
+	case ANEM_OPCODE_ADDI:
+		reads_rega = true; break; // reads Rd via sela
+	case ANEM_OPCODE_STACK:
+		// PUSH and SPWR read GPR via sela
+		// POP and SPRD read SP (forwarding chain), not GPR
+		if (instr.func == ANEM_STACKFUNC_PUSH || instr.func == ANEM_STACKFUNC_SPWR)
+			reads_rega = true;
+		break;
 	case ANEM_OPCODE_M1:
 		// MTHI/MTLO read register from func field, not rega
 		if (instr.rega == ANEM_M1FUNC_MTHI || instr.rega == ANEM_M1FUNC_MTLO)
@@ -1032,6 +1181,7 @@ void ANEMCPU::dumpRegisters(void)
 	}
 	std::cout << "HI = 0x" << std::hex << std::setfill('0') << std::setw(4) << this->reghi << std::endl;
 	std::cout << "LO = 0x" << std::hex << std::setfill('0') << std::setw(4) << this->reglo << std::endl;
+	std::cout << "SP = 0x" << std::hex << std::setfill('0') << std::setw(4) << this->regsp << std::endl;
 }
 
 void ANEMCPU::dumpMemory(addr_t start, addr_t count)

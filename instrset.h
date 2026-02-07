@@ -29,7 +29,12 @@
 #define ANEM_OPCODE_M1  0xE
 #define ANEM_OPCODE_BHLEQ 0x6
 
-//0xB, 0x7 FREE
+#define ANEM_OPCODE_STACK 0x7
+#define ANEM_OPCODE_ADDI  0xB
+#define ANEM_STACKFUNC_PUSH 0x0
+#define ANEM_STACKFUNC_POP  0x1
+#define ANEM_STACKFUNC_SPRD 0x2
+#define ANEM_STACKFUNC_SPWR 0x3
 
 //alu functions
 #define ANEM_FUNC_ADD 0x2

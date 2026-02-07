@@ -88,6 +88,8 @@ std::string opcodeName(uint8_t opcode)
     case ANEM_OPCODE_J:     return "J";
     case ANEM_OPCODE_M1:    return "M1";
     case ANEM_OPCODE_BHLEQ: return "BHLEQ";
+    case ANEM_OPCODE_STACK: return "STACK";
+    case ANEM_OPCODE_ADDI:  return "ADDI";
     default: return "???";
     }
 }
@@ -171,6 +173,21 @@ std::string disassemble(const ANEMInstruction& i)
         default:
             return fn;
         }
+    }
+
+    case ANEM_OPCODE_STACK: {
+        switch (i.func) {
+        case ANEM_STACKFUNC_PUSH: return "PUSH " + ra;
+        case ANEM_STACKFUNC_POP:  return "POP " + ra;
+        case ANEM_STACKFUNC_SPRD: return "SPRD " + ra;
+        case ANEM_STACKFUNC_SPWR: return "SPWR " + ra;
+        default: return "STACK? " + hexStr(iword, 4);
+        }
+    }
+
+    case ANEM_OPCODE_ADDI: {
+        int8_t simm = (int8_t)i.byte;
+        return "ADDI " + ra + ", " + std::to_string(simm);
     }
 
     default:

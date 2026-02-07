@@ -258,7 +258,8 @@ json ANEMDebugServer::handleRegisters(const json& params)
 		{"pc", toHex(regs.pc)},
 		{"gpr", gpr},
 		{"hi", toHex(regs.hi)},
-		{"lo", toHex(regs.lo)}
+		{"lo", toHex(regs.lo)},
+		{"sp", toHex(regs.sp)}
 	};
 }
 

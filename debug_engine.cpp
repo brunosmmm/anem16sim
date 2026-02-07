@@ -194,6 +194,7 @@ RegistersResult DebugEngine::getRegisters() const
 		r.gpr[i] = cpu.readRegister(i);
 	r.hi = cpu.getHI();
 	r.lo = cpu.getLO();
+	r.sp = cpu.getSP();
 	return r;
 }
 

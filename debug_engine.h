@@ -37,6 +37,7 @@ struct RegistersResult {
 	data_t gpr[16];
 	data_t hi;
 	data_t lo;
+	data_t sp;
 };
 
 struct MemoryEntry {
