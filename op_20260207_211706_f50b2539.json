@@ -1,0 +1,26 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "complexity_factors": null,
+    "perceived_complexity": 0.45,
+    "priority": "critical",
+    "tags": [
+      "simulator",
+      "bz_n",
+      "pipeline",
+      "branch",
+      "z-flag"
+    ],
+    "text": "BZ_N opcode broken in simulator: all three BZ variants (BZ, BZ_T, BZ_N) were decoded identically in cpu.cpp \u2014 all set bz_flag=true without distinguishing which variant. Branch resolution only checked `if (this->z_flag)`, meaning BZ_N (branch when Z=0) was treated the same as BZ_T (branch when Z=1). This caused SLT+BZ_N loop patterns to fail (loop runs only 1 iteration).\n\nFix: Added `bz_negate` field to d2e pipeline register. During decode, set `bz_negate = (i.ireg.opcode == ANEM_OPCODE_BZ_N)`. During branch resolution, use `bool take_branch = bz_negate ? !z_flag : z_flag`.\n\nFiles changed: cpu.h, cpu.cpp, snapshot.cpp\n\nStatus: FIXED in this session.",
+    "type": "bug"
+  },
+  "entity_id": "ann_211706_3e7cky7acaba",
+  "lamport_clock": 93,
+  "operation_id": "op_20260207_211706_f50b2539",
+  "operation_type": "annotation_create",
+  "parent_operation": null,
+  "timestamp": "2026-02-07T21:17:06.379721+00:00"
+}
