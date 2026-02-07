@@ -139,6 +139,24 @@ TESTS = [
         },
     ),
     TestCase(
+        name="test_interrupt",
+        memory={
+            0x10: 0x012A,  # SYSCALL 42 ECA (bit8=1, svc=0x2A)
+            0x11: 0x0026,  # SYSCALL 42 EPC (return addr past delay slot)
+            0x12: 0xBEEF,  # RETI returned correctly (marker value)
+            0x13: 0x0000,  # DI blocked interrupt ($13 stays 0)
+            0x14: 0x0000,  # EI + no ext INT in batch ($13 stays 0)
+            0x15: 0x1234,  # MTEPC/MFEPC round-trip
+            0x16: 0x0163,  # SYSCALL 99 ECA (bit8=1, svc=0x63)
+            0x17: 0x0050,  # SYSCALL 99 EPC
+            0x18: 0xAAAA,  # $7 preserved across SYSCALL
+            0x19: 0x01C8,  # SYSCALL 200 ECA (bit8=1, svc=0xC8)
+            0x1A: 0x0054,  # SYSCALL 200 EPC
+            0x1B: 0x0019,  # ALU chain result (5+10=15, 10+15=25)
+        },
+        max_cycles=500,
+    ),
+    TestCase(
         name="test_hilo",
         memory={
             0: 0x1234,  # LHI + MFHI
@@ -221,6 +239,10 @@ def assemble(test: TestCase, verbose: bool) -> bool:
 def run_test(test: TestCase, verbose: bool) -> tuple[bool, list[str]]:
     """Run a single test. Returns (passed, list_of_failure_messages)."""
     bin_file = SCRIPT_DIR / f"{test.name}.bin"
+    # Prefer .contents.txt when .bin doesn't exist (supports .ADDRESS gaps)
+    contents_file = SCRIPT_DIR / f"{test.name}.contents.txt"
+    if not bin_file.exists() and contents_file.exists():
+        bin_file = contents_file
     if not bin_file.exists():
         return False, [f"Binary not found: {bin_file}"]
 

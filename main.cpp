@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
 
 		// Dump final state
 		cpu.dumpRegisters();
-		cpu.dumpMemory(0, 16);
+		cpu.dumpMemory(0, 32);
 	}
 
 	// Finish HW trace (writes RF/SR/END)

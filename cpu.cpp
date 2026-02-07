@@ -52,18 +52,23 @@ void ANEMCPU::reset(void)
 	this->decode_to_exec.bubble = true;
 	this->decode_to_exec.sp_ctl = spNone;
 	this->decode_to_exec.alu_imm_sel = false;
+	this->decode_to_exec.exc_ctl = 0;
+	this->decode_to_exec.syscall_flag = false;
+	this->decode_to_exec.reti_flag = false;
 	this->decode_to_exec.pc = 0;
 	this->decode_to_exec.ireg = ANEM_INSTRUCTION_NOP;
 
 	this->mem_to_wb.reg_ctl = regNOP;
 	this->mem_to_wb.bubble = true;
 	this->mem_to_wb.sp_ctl = spNone;
+	this->mem_to_wb.exc_ctl = 0;
 	this->mem_to_wb.pc = 0;
 	this->mem_to_wb.ireg = ANEM_INSTRUCTION_NOP;
 
 	this->exec_to_mem.reg_ctl = regNOP;
 	this->exec_to_mem.bubble = true;
 	this->exec_to_mem.sp_ctl = spNone;
+	this->exec_to_mem.exc_ctl = 0;
 	this->exec_to_mem.pc = 0;
 	this->exec_to_mem.ireg = ANEM_INSTRUCTION_NOP;
 
@@ -84,6 +89,12 @@ void ANEMCPU::reset(void)
 
 	// Reset persistent Z flag
 	this->z_flag = false;
+
+	// Reset exception/interrupt registers
+	this->epc = 0;
+	this->eca = 0;
+	this->ien = false;
+	this->int_pin = false;
 
 	// Reset halt-detection state
 	this->totalCycles = 0;
@@ -122,6 +133,26 @@ void ANEMCPU::clockCycle(void)
 		this->counters.countStall();
 	}
 
+	// EPC read hazard: RETI/MFEPC in ID needs EPC, but MTEPC in EX/MEM hasn't written it yet.
+	// WB distance is handled by bypass in p_decode (no stall needed).
+	if (this->fw_enable && !this->p_stall_if)
+	{
+		const auto& consumer = this->fetch_to_decode.ireg;
+		bool id_reads_epc = false;
+		if (consumer.opcode == ANEM_OPCODE_M1 && consumer.rega == ANEM_M1FUNC_M4)
+		{
+			if (consumer.regb == ANEM_M4SUB_RETI || consumer.regb == ANEM_M4SUB_MFEPC)
+				id_reads_epc = true;
+		}
+		bool ex_writes_epc = (this->decode_to_exec.exc_ctl == 3);
+		bool mem_writes_epc = (this->exec_to_mem.exc_ctl == 3);
+		if (id_reads_epc && (ex_writes_epc || mem_writes_epc))
+		{
+			this->p_stall_if = true;
+			this->counters.countStall();
+		}
+	}
+
 	//fetch
 	freg = this->p_fetch();
 
@@ -147,6 +178,9 @@ void ANEMCPU::clockCycle(void)
 		dreg.hictl = noOp;
 		dreg.loctl = noOp;
 		dreg.sp_ctl = spNone;
+		dreg.syscall_flag = false;
+		dreg.reti_flag = false;
+		dreg.exc_ctl = 0;
 		dreg.bubble = true;
 		this->counters.countBubble();
 	}
@@ -198,7 +232,48 @@ struct f2d ANEMCPU::p_fetch(void)
 	}
 
 
-	if (this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag)
+	// External interrupt: "quiet cycle" gating
+	bool flush_active = this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag ||
+	                    this->decode_to_exec.reti_flag || this->decode_to_exec.bz_flag ||
+	                    this->decode_to_exec.bhleq_flag || this->decode_to_exec.syscall_flag;
+	bool ext_int_take = this->int_pin && this->ien && !flush_active && !this->p_stall_if;
+
+	if (ext_int_take)
+	{
+		this->epc = this->pc;  // Address of instruction about to be fetched (will be re-executed)
+		this->eca = 0x00FF;
+		this->ien = false;
+		fetchpc = ANEM_EXC_VECTOR;
+		instr = this->imem.fetch(fetchpc);
+		npc = fetchpc + 1;
+
+		todecode.savedpc = fetchpc;
+		todecode.ireg = instr;
+		todecode.pc = fetchpc;
+		todecode.bubble = false;
+		this->pc = npc;
+		return todecode;
+	}
+
+	if (this->decode_to_exec.syscall_flag)
+	{
+		// SYSCALL: save EPC/ECA/IEN, redirect to exception vector
+		this->epc = this->decode_to_exec.pc + 2;  // Skip SYSCALL + delay slot
+		this->eca = 0x0100 | this->decode_to_exec.ireg.byte;  // bit8=1, svc# in low byte
+		this->ien = false;
+		fetchpc = ANEM_EXC_VECTOR;
+		instr = this->imem.fetch(fetchpc);
+		npc = fetchpc + 1;
+	}
+	else if (this->decode_to_exec.reti_flag)
+	{
+		// RETI: re-enable interrupts, return to EPC
+		this->ien = true;
+		fetchpc = this->decode_to_exec.j_dest;  // Already set to EPC (with bypass)
+		instr = this->imem.fetch(fetchpc);
+		npc = fetchpc + 1;
+	}
+	else if (this->decode_to_exec.j_flag || this->decode_to_exec.jr_flag)
 	{
 		//unconditional jumps (J, JAL, JR) — dest already computed in decode
 		fetchpc = this->decode_to_exec.j_dest;
@@ -284,6 +359,9 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	toexec.loctl = noOp;
 	toexec.sp_ctl = spNone;
 	toexec.alu_imm_sel = false;
+	toexec.exc_ctl = 0;
+	toexec.syscall_flag = false;
+	toexec.reti_flag = false;
 	toexec.bubble = false;
 
 	//disable forwarding
@@ -446,6 +524,47 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			toexec.hictl = noOp;
 			toexec.loctl = fromRegister;
 			break;
+		case ANEM_M1FUNC_SYSCALL:
+			toexec.syscall_flag = true;
+			break;
+		case ANEM_M1FUNC_M4:
+			switch (i.ireg.regb)
+			{
+			case ANEM_M4SUB_RETI:
+				toexec.reti_flag = true;
+				// EPC bypass: if MTEPC is at WB, use its ALU output
+				if (this->mem_to_wb.exc_ctl == 3)
+					toexec.j_dest = this->mem_to_wb.alu_out.value;
+				else
+					toexec.j_dest = this->epc;
+				break;
+			case ANEM_M4SUB_EI:
+				this->ien = true;
+				break;
+			case ANEM_M4SUB_DI:
+				this->ien = false;
+				break;
+			case ANEM_M4SUB_MFEPC:
+				toexec.reg_ctl = regLoadALU;
+				toexec.alu_ctl = aluR;
+				toexec.alu_func = aluADD;
+				toexec.exc_ctl = 1;  // Override ALU_A with EPC
+				break;
+			case ANEM_M4SUB_MFECA:
+				toexec.reg_ctl = regLoadALU;
+				toexec.alu_ctl = aluR;
+				toexec.alu_func = aluADD;
+				toexec.exc_ctl = 2;  // Override ALU_A with ECA
+				break;
+			case ANEM_M4SUB_MTEPC:
+				toexec.alu_ctl = aluR;
+				toexec.alu_func = aluADD;
+				toexec.exc_ctl = 3;  // Write EPC at WB
+				break;
+			default:
+				break;
+			}
+			break;
 		default:
 			break;
 		}
@@ -460,7 +579,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	//alu function
 	// Skip ALU function decode for ADDI (which uses aluR/ADD but has
 	// the immediate in bits[7:0], not an R-type func in bits[3:0])
-	if (toexec.alu_ctl == aluR && !toexec.alu_imm_sel)
+	if (toexec.alu_ctl == aluR && !toexec.alu_imm_sel && toexec.exc_ctl == 0)
 	{
 		switch(i.ireg.func)
 		{
@@ -537,6 +656,14 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	if (i.ireg.opcode == ANEM_OPCODE_M1 &&
 	    (i.ireg.rega == ANEM_M1FUNC_MFHI || i.ireg.rega == ANEM_M1FUNC_MFLO ||
 	     i.ireg.rega == ANEM_M1FUNC_MTHI || i.ireg.rega == ANEM_M1FUNC_MTLO))
+	{
+		toexec.rega_sel = i.ireg.func;
+		toexec.rega_out = this->regbnk.r_read(i.ireg.func);
+	}
+	else if (i.ireg.opcode == ANEM_OPCODE_M1 &&
+	         i.ireg.rega == ANEM_M1FUNC_M4 &&
+	         (i.ireg.regb == ANEM_M4SUB_MFEPC || i.ireg.regb == ANEM_M4SUB_MFECA ||
+	          i.ireg.regb == ANEM_M4SUB_MTEPC))
 	{
 		toexec.rega_sel = i.ireg.func;
 		toexec.rega_out = this->regbnk.r_read(i.ireg.func);
@@ -666,6 +793,7 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 	tomem.pc = d.pc;
 	tomem.ireg = d.ireg;
 	tomem.bubble = d.bubble;
+	tomem.exc_ctl = d.exc_ctl;
 
 	//forwarding
 	if (this->fw_enable)
@@ -732,6 +860,17 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 		break;
 	}
 
+	// MFEPC/MFECA/MTEPC: ALU operand overrides
+	if (d.exc_ctl == 1) {
+		aluA = this->epc;
+		aluB = 0;
+	} else if (d.exc_ctl == 2) {
+		aluA = this->eca;
+		aluB = 0;
+	} else if (d.exc_ctl == 3) {
+		aluB = 0;
+	}
+
 	// ADDI: ALU_B = sign-extended 8-bit immediate
 	if (d.alu_imm_sel)
 		aluB = (data_t)(int16_t)(int8_t)d.imm_val;
@@ -770,6 +909,7 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 	towb.pc = e.pc;
 	towb.ireg = e.ireg;
 	towb.bubble = e.bubble;
+	towb.exc_ctl = e.exc_ctl;
 
 	//verify if memory access is done
 	if (e.mem_enable)
@@ -856,6 +996,10 @@ void ANEMCPU::p_writeback(struct m2w m)
 	// SP register update
 	if (m.sp_ctl == spPush || m.sp_ctl == spPop || m.sp_ctl == spWrite)
 		this->regsp = m.sp_new;
+
+	// MTEPC: write EPC from ALU output
+	if (m.exc_ctl == 3)
+		this->epc = m.alu_out.value;
 
 	//calcualte AIS
 	ais_result = (((dword_t)m.hiout << 16) | ((dword_t)m.loout)) + (sdword_t)m.imm_val;
@@ -1152,6 +1296,12 @@ bool ANEMCPU::detectZeroGapHazard(void) const
 	case ANEM_OPCODE_M1:
 		// MTHI/MTLO read register from func field, not rega
 		if (instr.rega == ANEM_M1FUNC_MTHI || instr.rega == ANEM_M1FUNC_MTLO)
+		{
+			reads_rega = true;
+			src_a = instr.func;
+		}
+		// MTEPC reads register from func field
+		else if (instr.rega == ANEM_M1FUNC_M4 && instr.regb == ANEM_M4SUB_MTEPC)
 		{
 			reads_rega = true;
 			src_a = instr.func;

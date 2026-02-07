@@ -61,6 +61,9 @@ static json serializeD2E(const d2e& r)
 		{"sp_ctl", (int)r.sp_ctl},
 		{"sp_val", r.sp_val},
 		{"alu_imm_sel", r.alu_imm_sel},
+		{"exc_ctl", r.exc_ctl},
+		{"syscall_flag", r.syscall_flag},
+		{"reti_flag", r.reti_flag},
 		{"pc", r.pc},
 		{"ireg", r.ireg.toWord()}
 	};
@@ -88,6 +91,7 @@ static json serializeE2M(const e2m& r)
 		{"sp_ctl", (int)r.sp_ctl},
 		{"sp_new", r.sp_new},
 		{"sp_addr", r.sp_addr},
+		{"exc_ctl", r.exc_ctl},
 		{"pc", r.pc},
 		{"ireg", r.ireg.toWord()}
 	};
@@ -113,6 +117,7 @@ static json serializeM2W(const m2w& r)
 		{"savedpc", r.savedpc},
 		{"sp_ctl", (int)r.sp_ctl},
 		{"sp_new", r.sp_new},
+		{"exc_ctl", r.exc_ctl},
 		{"pc", r.pc},
 		{"ireg", r.ireg.toWord()}
 	};
@@ -166,6 +171,9 @@ static d2e deserializeD2E(const json& j)
 	r.sp_ctl = (ANEMSPCtl)j.value("sp_ctl", 0);
 	r.sp_val = j.value("sp_val", (data_t)0);
 	r.alu_imm_sel = j.value("alu_imm_sel", false);
+	r.exc_ctl = j.value("exc_ctl", (uint8_t)0);
+	r.syscall_flag = j.value("syscall_flag", false);
+	r.reti_flag = j.value("reti_flag", false);
 	r.pc = j.value("pc", (addr_t)0);
 	r.ireg = ANEMInstruction((uint16_t)j.value("ireg", 0));
 	return r;
@@ -192,6 +200,7 @@ static e2m deserializeE2M(const json& j)
 	r.sp_ctl = (ANEMSPCtl)j.value("sp_ctl", 0);
 	r.sp_new = j.value("sp_new", (data_t)0);
 	r.sp_addr = j.value("sp_addr", (data_t)0);
+	r.exc_ctl = j.value("exc_ctl", (uint8_t)0);
 	r.pc = j.value("pc", (addr_t)0);
 	r.ireg = ANEMInstruction((uint16_t)j.value("ireg", 0));
 	return r;
@@ -216,6 +225,7 @@ static m2w deserializeM2W(const json& j)
 	r.savedpc = j.value("savedpc", (addr_t)0);
 	r.sp_ctl = (ANEMSPCtl)j.value("sp_ctl", 0);
 	r.sp_new = j.value("sp_new", (data_t)0);
+	r.exc_ctl = j.value("exc_ctl", (uint8_t)0);
 	r.pc = j.value("pc", (addr_t)0);
 	r.ireg = ANEMInstruction((uint16_t)j.value("ireg", 0));
 	return r;
@@ -254,6 +264,9 @@ json snapshot::save(const ANEMCPU& cpu, const std::string& programFile)
 	cpuState["hi"] = cpu.getHI();
 	cpuState["lo"] = cpu.getLO();
 	cpuState["sp"] = cpu.getSP();
+	cpuState["epc"] = cpu.getEPC();
+	cpuState["eca"] = cpu.getECA();
+	cpuState["ien"] = cpu.getIEN();
 
 	// GPR
 	json gpr = json::array();
@@ -332,6 +345,9 @@ void snapshot::restore(ANEMCPU& cpu, const json& j)
 	cpu.setHI(cpuState.at("hi").get<data_t>());
 	cpu.setLO(cpuState.at("lo").get<data_t>());
 	cpu.setSP(cpuState.value("sp", (data_t)0xFFCF));
+	cpu.setEPC(cpuState.value("epc", (data_t)0));
+	cpu.setECA(cpuState.value("eca", (data_t)0));
+	cpu.setIEN(cpuState.value("ien", false));
 
 	// GPR
 	const auto& gpr = cpuState.at("gpr");

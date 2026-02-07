@@ -65,6 +65,19 @@
 #define ANEM_M1FUNC_MFLO 0x8
 #define ANEM_M1FUNC_MTHI 0x9
 #define ANEM_M1FUNC_MTLO 0xA
+#define ANEM_M1FUNC_SYSCALL 0xB
+#define ANEM_M1FUNC_M4      0xC
+
+// M4 subfunctions in bits[7:4] (regb field)
+#define ANEM_M4SUB_RETI     0x0
+#define ANEM_M4SUB_EI       0x1
+#define ANEM_M4SUB_DI       0x2
+#define ANEM_M4SUB_MFEPC    0x3
+#define ANEM_M4SUB_MFECA    0x4
+#define ANEM_M4SUB_MTEPC    0x5
+
+// Exception vector address
+#define ANEM_EXC_VECTOR     0x0002
 
 typedef struct ANEM_I_S
 {

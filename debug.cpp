@@ -215,6 +215,10 @@ void ANEMDebugger::cmdRegisters(const std::vector<std::string>& args)
 	std::cout << std::right << "HI  = 0x" << std::hex << std::setfill('0') << std::setw(4) << regs.hi
 	          << "  LO  = 0x" << std::setw(4) << regs.lo << std::dec
 	          << std::setfill(' ') << std::endl;
+	std::cout << "EPC = 0x" << std::hex << std::setfill('0') << std::setw(4) << regs.epc
+	          << "  ECA = 0x" << std::setw(4) << regs.eca
+	          << "  IEN = " << std::dec << regs.ien
+	          << std::setfill(' ') << std::endl;
 }
 
 void ANEMDebugger::cmdMemory(const std::vector<std::string>& args)
@@ -373,6 +377,8 @@ void ANEMDebugger::cmdHelp()
 	std::cout << "  save <file>    Save state snapshot (JSON)" << std::endl;
 	std::cout << "  load <file>    Load state snapshot (JSON)" << std::endl;
 	std::cout << "  reset          Reset CPU" << std::endl;
+	std::cout << "  int            Assert external interrupt" << std::endl;
+	std::cout << "  noint          Deassert external interrupt" << std::endl;
 	std::cout << "  q              Quit" << std::endl;
 	std::cout << "Addresses can be decimal or hex (0x prefix)." << std::endl;
 }
@@ -437,6 +443,16 @@ void ANEMDebugger::run()
 				cmdLoad(tokens);
 			else if (cmd == "reset")
 				cmdReset();
+			else if (cmd == "int")
+			{
+				engine.assertInterrupt();
+				std::cout << "INT asserted." << std::endl;
+			}
+			else if (cmd == "noint")
+			{
+				engine.deassertInterrupt();
+				std::cout << "INT deasserted." << std::endl;
+			}
 			else
 				std::cout << "Unknown command: " << cmd << ". Type 'h' for help." << std::endl;
 		}

@@ -71,6 +71,8 @@ static std::string m1FuncName(uint8_t func)
     case ANEM_M1FUNC_MFLO: return "MFLO";
     case ANEM_M1FUNC_MTHI: return "MTHI";
     case ANEM_M1FUNC_MTLO: return "MTLO";
+    case ANEM_M1FUNC_SYSCALL: return "SYSCALL";
+    case ANEM_M1FUNC_M4: return "M4";
     default: return "M1?";
     }
 }
@@ -174,6 +176,18 @@ std::string disassemble(const ANEMInstruction& i)
         case ANEM_M1FUNC_AIL:
         case ANEM_M1FUNC_AIS:
             return fn + " " + hexStr(i.byte);
+        case ANEM_M1FUNC_SYSCALL:
+            return "SYSCALL " + std::to_string(i.byte);
+        case ANEM_M1FUNC_M4:
+            switch (i.regb) {
+            case ANEM_M4SUB_RETI:  return "RETI";
+            case ANEM_M4SUB_EI:    return "EI";
+            case ANEM_M4SUB_DI:    return "DI";
+            case ANEM_M4SUB_MFEPC: return "MFEPC " + regName(i.func);
+            case ANEM_M4SUB_MFECA: return "MFECA " + regName(i.func);
+            case ANEM_M4SUB_MTEPC: return "MTEPC " + regName(i.func);
+            default: return "M4? " + hexStr(i.byte);
+            }
         default:
             return fn;
         }

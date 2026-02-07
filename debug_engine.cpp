@@ -195,6 +195,9 @@ RegistersResult DebugEngine::getRegisters() const
 	r.hi = cpu.getHI();
 	r.lo = cpu.getLO();
 	r.sp = cpu.getSP();
+	r.epc = cpu.getEPC();
+	r.eca = cpu.getECA();
+	r.ien = cpu.getIEN();
 	return r;
 }
 
@@ -273,6 +276,18 @@ StatusResult DebugEngine::getStatus() const
 void DebugEngine::writeMemory(addr_t addr, data_t value)
 {
 	cpu.getDataMemory().write(addr, value);
+}
+
+// Interrupt control
+
+void DebugEngine::assertInterrupt()
+{
+	cpu.setIntPin(true);
+}
+
+void DebugEngine::deassertInterrupt()
+{
+	cpu.setIntPin(false);
 }
 
 // Control

@@ -38,6 +38,9 @@ struct RegistersResult {
 	data_t hi;
 	data_t lo;
 	data_t sp;
+	data_t epc;
+	data_t eca;
+	bool ien;
 };
 
 struct MemoryEntry {
@@ -142,6 +145,10 @@ public:
 	// Snapshots
 	void saveSnapshot(const std::string& path, const std::string& programFile = "");
 	void loadSnapshot(const std::string& path);
+
+	// Interrupt control
+	void assertInterrupt();
+	void deassertInterrupt();
 
 	// Control
 	void setTrace(bool enabled);

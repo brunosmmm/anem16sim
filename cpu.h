@@ -87,6 +87,11 @@ struct d2e
 	data_t sp_val;
 	bool alu_imm_sel;
 
+	// Exception control
+	uint8_t exc_ctl = 0;  // 0=none, 1=MFEPC, 2=MFECA, 3=MTEPC
+	bool syscall_flag = false;
+	bool reti_flag = false;
+
 	addr_t pc;  // PC of this instruction
 	ANEMInstruction ireg;  // original instruction (for disassembly)
 };
@@ -122,6 +127,9 @@ struct e2m
 	data_t sp_new;
 	data_t sp_addr;
 
+	// Exception control
+	uint8_t exc_ctl = 0;  // 0=none, 1=MFEPC, 2=MFECA, 3=MTEPC
+
 	addr_t pc;  // PC of this instruction
 	ANEMInstruction ireg;  // original instruction (for disassembly)
 };
@@ -153,6 +161,9 @@ struct m2w
 	ANEMSPCtl sp_ctl;
 	data_t sp_new;
 
+	// Exception control
+	uint8_t exc_ctl = 0;  // 0=none, 1=MFEPC, 2=MFECA, 3=MTEPC
+
 	addr_t pc;  // PC of this instruction
 	ANEMInstruction ireg;  // original instruction (for disassembly)
 };
@@ -176,6 +187,12 @@ private:
 	data_t reghi;
 	data_t reglo;
 	data_t regsp;
+
+	// Exception/interrupt registers
+	data_t epc = 0;        // Exception PC register
+	data_t eca = 0;        // Exception Cause register
+	bool ien = false;       // Interrupt Enable flag
+	bool int_pin = false;   // External interrupt input pin
 
 	// Persistent Z flag register (hardware: p_alu_mem_z_2, gated by p_z_en).
 	// Only updates on R-type or S-type ALU operations; non-ALU instructions
@@ -254,6 +271,11 @@ public:
 	data_t getHI() const { return reghi; }
 	data_t getLO() const { return reglo; }
 	data_t getSP() const { return regsp; }
+	data_t getEPC() const { return epc; }
+	data_t getECA() const { return eca; }
+	bool getIEN() const { return ien; }
+	bool getIntPin() const { return int_pin; }
+	void setIntPin(bool level) { int_pin = level; }
 	const struct f2d& getFetchToDecode() const { return fetch_to_decode; }
 	const struct d2e& getDecodeToExec() const { return decode_to_exec; }
 	const struct e2m& getExecToMem() const { return exec_to_mem; }
@@ -282,6 +304,9 @@ public:
 	void setHI(data_t h) { reghi = h; }
 	void setLO(data_t l) { reglo = l; }
 	void setSP(data_t s) { regsp = s; }
+	void setEPC(data_t e) { epc = e; }
+	void setECA(data_t e) { eca = e; }
+	void setIEN(bool e) { ien = e; }
 	void writeRegister(uint8_t reg, data_t val) { regbnk.r_write(reg, val); }
 	void setFetchToDecode(const f2d& r) { fetch_to_decode = r; }
 	void setDecodeToExec(const d2e& r) { decode_to_exec = r; }

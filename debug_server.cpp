@@ -105,6 +105,8 @@ json ANEMDebugServer::dispatch(const std::string& method, const json& params,
 			return jsonrpc::makeResponse(id, handleWatchpointRemove(params));
 		if (method == "watchpoint.list")
 			return jsonrpc::makeResponse(id, handleWatchpointList());
+		if (method == "interrupt")
+			return jsonrpc::makeResponse(id, handleInterrupt(params));
 
 		return jsonrpc::makeError(id, -2, "Simulator is running");
 	}
@@ -149,6 +151,8 @@ json ANEMDebugServer::dispatch(const std::string& method, const json& params,
 		return jsonrpc::makeResponse(id, handleSnapshotSave(params));
 	if (method == "snapshot.load")
 		return jsonrpc::makeResponse(id, handleSnapshotLoad(params));
+	if (method == "interrupt")
+		return jsonrpc::makeResponse(id, handleInterrupt(params));
 
 	return jsonrpc::makeError(id, -32601, "Method not found: " + method);
 }
@@ -259,7 +263,10 @@ json ANEMDebugServer::handleRegisters(const json& params)
 		{"gpr", gpr},
 		{"hi", toHex(regs.hi)},
 		{"lo", toHex(regs.lo)},
-		{"sp", toHex(regs.sp)}
+		{"sp", toHex(regs.sp)},
+		{"epc", toHex(regs.epc)},
+		{"eca", toHex(regs.eca)},
+		{"ien", regs.ien}
 	};
 }
 
@@ -373,6 +380,16 @@ json ANEMDebugServer::handleSnapshotSave(const json& params)
 	std::string program = params.value("program", std::string());
 	engine.saveSnapshot(path, program);
 	return json{{"path", path}};
+}
+
+json ANEMDebugServer::handleInterrupt(const json& params)
+{
+	bool assert_int = params.value("assert", true);
+	if (assert_int)
+		engine.assertInterrupt();
+	else
+		engine.deassertInterrupt();
+	return json{{"asserted", assert_int}};
 }
 
 json ANEMDebugServer::handleSnapshotLoad(const json& params)
