@@ -1,0 +1,23 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "commit_refs": [
+      {
+        "hash": "c7f385cefcd26a831d18ed610000ceace3e46222",
+        "hash_short": "c7f385c",
+        "linked_at": "2026-02-07T00:35:50.261278+00:00",
+        "message": "feat(cpu): add stack operations (PUSH/POP/SPRD/SPWR) and ADDI instruction\n\nImplement SP register (re"
+      }
+    ],
+    "last_activity": "2026-02-07T00:35:50.261278+00:00"
+  },
+  "entity_id": "ann_180942_3e7ckyb2ceca",
+  "lamport_clock": 74,
+  "operation_id": "op_20260207_003550_5119feea",
+  "operation_type": "annotation_update",
+  "parent_operation": null,
+  "timestamp": "2026-02-07T00:35:50.266865+00:00"
+}
