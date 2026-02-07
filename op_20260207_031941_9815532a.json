@@ -1,0 +1,42 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [
+      "ann_180942_3e7ckyb2ceca",
+      "ann_141553_3e7cky1d68ab",
+      "ann_031223_3e7cky9f4179"
+    ],
+    "code_commit": "0038d07fee6b5b1910d1f869b84b91fd01279366",
+    "code_commit_message": "feat(cpu): add interrupt/exception support (SYSCALL, RETI, EI/DI, MFEPC/MFECA/MTEPC)\n\nImplement cycle-accurate interrupt and exception handling matching the\nhardware specification. SYSCALL triggers exception entry via vector\n0x0002, RETI returns from handler, and M4 group instructions manage\nEPC/ECA/IEN state. External interrupt input available via debug API.",
+    "files": [
+      "cpu.cpp",
+      "cpu.h",
+      "debug.cpp",
+      "debug_engine.cpp",
+      "debug_engine.h",
+      "debug_server.cpp",
+      "debug_server.h",
+      "disasm.cpp",
+      "instrset.h",
+      "main.cpp",
+      "snapshot.cpp",
+      "tests/run_tests.py"
+    ],
+    "tasks_linked": [
+      "task_183114_70b5cf",
+      "task_182302_0b152b",
+      "task_164334_526462",
+      "task_152716_531f92",
+      "task_151705_4e6e2f"
+    ]
+  },
+  "entity_id": null,
+  "lamport_clock": 89,
+  "operation_id": "op_20260207_031941_9815532a",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-07T03:19:41.096568+00:00"
+}
