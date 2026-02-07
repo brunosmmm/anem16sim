@@ -8,16 +8,16 @@
       {
         "hash": "c7f385cefcd26a831d18ed610000ceace3e46222",
         "hash_short": "c7f385c",
-        "linked_at": "2026-02-07T00:35:50.329514+00:00",
+        "linked_at": "2026-02-07T00:35:50.361948+00:00",
         "message": "feat(cpu): add stack operations (PUSH/POP/SPRD/SPWR) and ADDI instruction\n\nImplement SP register (re"
       }
     ],
-    "last_activity": "2026-02-07T00:35:50.329514+00:00"
+    "last_activity": "2026-02-07T00:35:50.361948+00:00"
   },
-  "entity_id": "ann_031223_3e7cky9f4179",
-  "lamport_clock": 76,
-  "operation_id": "op_20260207_003550_a5a1bc32",
+  "entity_id": "ann_011955_3e7ckyd28bb8",
+  "lamport_clock": 77,
+  "operation_id": "op_20260207_003550_207681df",
   "operation_type": "annotation_update",
   "parent_operation": null,
-  "timestamp": "2026-02-07T00:35:50.333505+00:00"
+  "timestamp": "2026-02-07T00:35:50.365990+00:00"
 }
