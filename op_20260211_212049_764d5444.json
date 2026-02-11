@@ -1,0 +1,33 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "annotations_linked": [],
+    "code_commit": "a8ff54fe7e205d2d8b68914ceda2981784c7be3e",
+    "code_commit_message": "feat(periph): add GPIO, Timer, and UART peripheral emulation\n\nAdd three simulated peripherals matching the ANEM16 VHDL hardware:\n- GPIO (0xFFD0-0xFFD3): 2 ports, per-bit direction, debug-injectable pins\n- Timer (0xFFD7-0xFFDA): prescaler, compare match, auto-reload, interrupts\n- UART (0xFFDB-0xFFDE): TX FSM, byte-injection RX, console I/O callback\n\nIntegrate into all modes (free-run, debug REPL, JSON-RPC server) with\nperipheral clock callback, interrupt OR chain, and debug commands\n(gpio, periph, uart tx, gpio.read/write, uart.inject, periph.list).\n\nFix attachPeripheral off-by-one collision check and zero-initialize\npipeline structs/CPU registers to eliminate pre-existing UB.",
+    "files": [
+      "alu.h",
+      "cpu.h",
+      "debug.cpp",
+      "debug.h",
+      "debug_engine.cpp",
+      "debug_engine.h",
+      "debug_server.cpp",
+      "debug_server.h",
+      "main.cpp",
+      "mem.cpp",
+      "meson.build",
+      "periph.h",
+      "periph/mac.h"
+    ],
+    "tasks_linked": []
+  },
+  "entity_id": null,
+  "lamport_clock": 99,
+  "operation_id": "op_20260211_212049_764d5444",
+  "operation_type": "commit_linked",
+  "parent_operation": null,
+  "timestamp": "2026-02-11T21:20:49.547570+00:00"
+}
