@@ -1,0 +1,26 @@
+{
+  "author": {
+    "email": "brunosmmm@gmail.com",
+    "name": "Bruno Morais"
+  },
+  "data": {
+    "complexity_factors": null,
+    "perceived_complexity": 0.7,
+    "priority": "medium",
+    "tags": [
+      "simulator",
+      "peripherals",
+      "gpio",
+      "timer",
+      "uart"
+    ],
+    "text": "Implement simulated peripheral support in anem16sim\n\nThe ANEM16 GHDL simulation now has GPIO, Timer, and UART peripherals. The C simulator needs matching peripheral emulation for trace comparison.\n\nPeripherals to implement:\n1. **GPIO** (0xFFD0-0xFFD3): Port A/B DATA and DIR registers, per-bit tristate, readback (output=latch, input=pin)\n2. **Timer** (0xFFD7-0xFFDA): 16-bit counter with prescaler (/1,/4,/16,/256), auto-reload, compare match, W1C status, interrupt\n3. **UART** (0xFFDB-0xFFDE): TX/RX with baud generator (16x oversampling), status flags (TXRDY, RXDA, FE, OE)\n\nReference: VHDL implementations in anem16pipe gpio/gpio.vhd, timer/timer.vhd, uart/uart.vhd",
+    "type": "todo"
+  },
+  "entity_id": "ann_202302_3e7cky5ec44f",
+  "lamport_clock": 95,
+  "operation_id": "op_20260211_202302_da788c2c",
+  "operation_type": "annotation_create",
+  "parent_operation": null,
+  "timestamp": "2026-02-11T20:23:02.210041+00:00"
+}
