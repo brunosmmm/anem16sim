@@ -43,6 +43,7 @@ static json serializeD2E(const d2e& r)
 		{"j_flag", r.j_flag},
 		{"jr_flag", r.jr_flag},
 		{"bz_flag", r.bz_flag},
+		{"bz_negate", r.bz_negate},
 		{"bhleq_flag", r.bhleq_flag},
 		{"j_dest", r.j_dest},
 		{"bz_offset", r.bz_offset},
@@ -153,6 +154,7 @@ static d2e deserializeD2E(const json& j)
 	r.j_flag = j.value("j_flag", false);
 	r.jr_flag = j.value("jr_flag", false);
 	r.bz_flag = j.value("bz_flag", false);
+	r.bz_negate = j.value("bz_negate", false);
 	r.bhleq_flag = j.value("bhleq_flag", false);
 	r.j_dest = j.value("j_dest", (addr_t)0);
 	r.bz_offset = j.value("bz_offset", (uint16_t)0);

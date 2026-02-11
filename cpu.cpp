@@ -174,6 +174,7 @@ void ANEMCPU::clockCycle(void)
 		dreg.j_flag = false;
 		dreg.jr_flag = false;
 		dreg.bz_flag = false;
+		dreg.bz_negate = false;
 		dreg.bhleq_flag = false;
 		dreg.hictl = noOp;
 		dreg.loctl = noOp;
@@ -285,7 +286,10 @@ struct f2d ANEMCPU::p_fetch(void)
 		// Hardware has a registered Z (p_alu_mem_z_2) gated by p_z_en —
 		// only R/S type ops update it. Non-ALU instructions preserve Z.
 		// Using this->z_flag matches that behavior.
-		if (this->z_flag)
+		// BZ/BZ_T branch when Z=1; BZ_N branch when Z=0.
+		bool take_branch = this->decode_to_exec.bz_negate
+		                       ? !this->z_flag : this->z_flag;
+		if (take_branch)
 		{
 			fetchpc = (addr_t)((int32_t)this->pc + (int32_t)sign_ext_12(this->decode_to_exec.bz_offset));
 			instr = this->imem.fetch(fetchpc);
@@ -353,6 +357,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	toexec.j_flag = false;
 	toexec.jr_flag = false;
 	toexec.bz_flag = false;
+	toexec.bz_negate = false;
 	toexec.bhleq_flag = false;
 	toexec.bz_offset = 0;
 	toexec.hictl = noOp;
@@ -430,6 +435,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 		toexec.reg_ctl = regNOP;
 		toexec.alu_ctl = aluNOP;
 		toexec.bz_flag = true;
+		toexec.bz_negate = (i.ireg.opcode == ANEM_OPCODE_BZ_N);
 		break;
 	case ANEM_OPCODE_BHLEQ:
 		toexec.reg_ctl = regNOP;
@@ -603,6 +609,8 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 		  break;
 		case ANEM_FUNC_MUL:
 		  toexec.alu_func = aluMUL;
+		  toexec.hictl = fromMultiply;
+		  toexec.loctl = fromMultiply;
 		  break;
 		case ANEM_FUNC_NOR:
 			toexec.alu_func = aluNOR;
@@ -1028,6 +1036,10 @@ void ANEMCPU::p_writeback(struct m2w m)
 	      this->reghi = m.rega_out;
 	      break;
 
+	    case fromMultiply:
+	      this->reghi = m.alu_out.hiout;
+	      break;
+
 	    default:
 	      break;
 	  }
@@ -1050,6 +1062,10 @@ void ANEMCPU::p_writeback(struct m2w m)
 
 	    case fromRegister:
 	      this->reglo = m.rega_out;
+	      break;
+
+	    case fromMultiply:
+	      this->reglo = m.alu_out.value;
 	      break;
 
 	    default:

@@ -18,7 +18,7 @@
 
 #define GPR_COUNT 16
 
-enum ANEMHILOOp {loadUpper, loadLower, fromRegister, doAIS, doAIH_AIL, noOp};
+enum ANEMHILOOp {loadUpper, loadLower, fromRegister, doAIS, doAIH_AIL, fromMultiply, noOp};
 enum ANEMSPCtl { spNone = 0, spPush, spPop, spRead, spWrite };
 
 struct f2d
@@ -58,6 +58,7 @@ struct d2e
 	bool j_flag; //J and JAL types
 	bool jr_flag;
 	bool bz_flag;
+	bool bz_negate; // true for BZ_N (branch when Z=0), false for BZ/BZ_T
 	bool bhleq_flag;
 
 	addr_t j_dest; //for J, JR and JAL
