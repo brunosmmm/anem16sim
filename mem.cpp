@@ -292,14 +292,12 @@ bool ANEMDataMemory::attachPeripheral(addr_t address, ANEMMemMappedPeripheral *p
 
 	}
 
-	//check if the peripheral fits in the address space
-	it = this->vmem.find(address+p->getLength());
-	if (it != this->vmem.end())
+	//check if all addresses in range are available
+	for (unsigned int i = 1; i < p->getLength(); i++)
 	{
-
-		//clash
-		return false;
-
+		it = this->vmem.find(address + i);
+		if (it != this->vmem.end())
+			return false;
 	}
 
 	//all good, set base address

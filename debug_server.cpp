@@ -4,6 +4,9 @@
  */
 
 #include "debug_server.h"
+#include "periph/gpio.h"
+#include "periph/timer.h"
+#include "periph/uart.h"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -153,6 +156,14 @@ json ANEMDebugServer::dispatch(const std::string& method, const json& params,
 		return jsonrpc::makeResponse(id, handleSnapshotLoad(params));
 	if (method == "interrupt")
 		return jsonrpc::makeResponse(id, handleInterrupt(params));
+	if (method == "gpio.read")
+		return jsonrpc::makeResponse(id, handleGPIORead(params));
+	if (method == "gpio.write")
+		return jsonrpc::makeResponse(id, handleGPIOWrite(params));
+	if (method == "uart.inject")
+		return jsonrpc::makeResponse(id, handleUartInject(params));
+	if (method == "periph.list")
+		return jsonrpc::makeResponse(id, handlePeriphList());
 
 	return jsonrpc::makeError(id, -32601, "Method not found: " + method);
 }
@@ -398,6 +409,107 @@ json ANEMDebugServer::handleSnapshotLoad(const json& params)
 	engine.loadSnapshot(path);
 	auto regs = engine.getRegisters();
 	return json{{"path", path}, {"pc", toHex(regs.pc)}};
+}
+
+json ANEMDebugServer::handleGPIORead(const json& params)
+{
+	auto* gpio = engine.getGPIO();
+	if (!gpio)
+		return json{{"error", "GPIO not available"}};
+
+	int port = params.value("port", 0);
+	if (port < 0 || port > 1)
+		return json{{"error", "Port must be 0 or 1"}};
+
+	return json{
+		{"port", port},
+		{"data", toHex(gpio->getOutputLatch(port))},
+		{"dir", toHex(gpio->getDirection(port))},
+		{"ext", toHex(gpio->getExternalPins(port))},
+		{"readback", toHex(gpio->getReadback(port))}
+	};
+}
+
+json ANEMDebugServer::handleGPIOWrite(const json& params)
+{
+	auto* gpio = engine.getGPIO();
+	if (!gpio)
+		return json{{"error", "GPIO not available"}};
+
+	int port = params.value("port", 0);
+	if (port < 0 || port > 1)
+		return json{{"error", "Port must be 0 or 1"}};
+
+	data_t value = (data_t)fromHex(params.at("value"));
+	gpio->setExternalPins(port, value);
+	return json{{"port", port}, {"value", toHex(value)}};
+}
+
+json ANEMDebugServer::handleUartInject(const json& params)
+{
+	auto* uart = engine.getUART();
+	if (!uart)
+		return json{{"error", "UART not available"}};
+
+	std::string data = params.at("data").get<std::string>();
+	for (char ch : data)
+		uart->injectRxByte((uint8_t)ch);
+
+	return json{{"injected", (int)data.size()}};
+}
+
+json ANEMDebugServer::handlePeriphList()
+{
+	json result;
+
+	auto* gpio = engine.getGPIO();
+	if (gpio)
+	{
+		json ports = json::array();
+		for (int p = 0; p < 2; p++)
+		{
+			ports.push_back(json{
+				{"port", p},
+				{"data", toHex(gpio->getOutputLatch(p))},
+				{"dir", toHex(gpio->getDirection(p))},
+				{"ext", toHex(gpio->getExternalPins(p))}
+			});
+		}
+		result["gpio"] = ports;
+	}
+
+	auto* timer = engine.getTimer();
+	if (timer)
+	{
+		result["timer"] = json{
+			{"count", toHex(timer->getCount())},
+			{"ctrl", toHex(timer->getCtrl())},
+			{"status", toHex(timer->getStatus())},
+			{"compare", toHex(timer->getCompare())}
+		};
+	}
+
+	auto* uart = engine.getUART();
+	if (uart)
+	{
+		std::string txState;
+		switch (uart->getTxState())
+		{
+		case UartTxState::IDLE:  txState = "idle";  break;
+		case UartTxState::START: txState = "start"; break;
+		case UartTxState::DATA:  txState = "data";  break;
+		case UartTxState::STOP:  txState = "stop";  break;
+		}
+
+		result["uart"] = json{
+			{"ctrl", toHex(uart->getCtrl())},
+			{"status", toHex(uart->getStatusReg())},
+			{"baud", toHex(uart->getBaudDiv())},
+			{"tx_state", txState}
+		};
+	}
+
+	return result;
 }
 
 // ---- Simulation worker thread ----

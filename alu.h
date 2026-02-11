@@ -19,9 +19,9 @@ enum ANEMAluFunc {aluADD, aluSUB, aluOR, aluAND, aluXOR, aluNOR, aluSLT, aluSGT,
 typedef struct ALU_OUT
 {
 
-	data_t value;
-  data_t hiout; //hi register output from MUL instruction
-	uint8_t flags;
+	data_t value = 0;
+	data_t hiout = 0; //hi register output from MUL instruction
+	uint8_t flags = 0;
 
 } ANEMAluOut;
 

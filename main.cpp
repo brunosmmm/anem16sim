@@ -16,6 +16,10 @@
 #include <iomanip>
 #include <cstring>
 #include "periph/mac.h"
+#include "periph/gpio.h"
+#include "periph/timer.h"
+#include "periph/uart.h"
+#include <cstdio>
 
 static void printUsage(const char* prog)
 {
@@ -135,13 +139,22 @@ int main(int argc, char *argv[])
 
 	//standard peripherals
 	ANEMPeripheralMAC mac;
+	ANEMPeripheralGPIO gpio;
+	ANEMPeripheralTimer timer;
+	ANEMPeripheralUART uart;
 
 	//attach standard peripherals
 	cpu.attachPeripheral(MAC_BASE_ADDR, &mac);
+	cpu.attachPeripheral(GPIO_BASE_ADDR, &gpio);
+	cpu.attachPeripheral(TIMER_BASE_ADDR, &timer);
+	cpu.attachPeripheral(UART_BASE_ADDR, &uart);
 
 	//reset CPU & peripherals
 	cpu.reset();
 	mac.reset();
+	gpio.reset();
+	timer.reset();
+	uart.reset();
 
 	cpu.setMaxCycles(maxCycles);
 
@@ -181,14 +194,31 @@ int main(int argc, char *argv[])
 		cpu.setTraceWriter(&traceWriter);
 	}
 
+	// Peripheral clock + interrupt lambda (shared by all modes)
+	auto clockPeripherals = [&]() {
+		mac.clockCycle();
+		gpio.clockCycle();
+		timer.clockCycle();
+		uart.clockCycle();
+		cpu.setIntPin(mac.getInterrupt() || timer.getInterrupt() || uart.getInterrupt());
+	};
+
 	if (remoteMode)
 	{
 		ANEMDebugServer server(cpu, remotePort);
+		server.setPeripheralClock(clockPeripherals);
+		server.setGPIO(&gpio);
+		server.setTimer(&timer);
+		server.setUART(&uart);
 		server.run();
 	}
 	else if (debugMode)
 	{
 		ANEMDebugger dbg(cpu, traceMode);
+		dbg.setPeripheralClock(clockPeripherals);
+		dbg.setGPIO(&gpio);
+		dbg.setUART(&uart);
+		dbg.setTimer(&timer);
 		dbg.run();
 	}
 	else
@@ -206,11 +236,17 @@ int main(int argc, char *argv[])
 			});
 		}
 
+		// Console I/O (free-run mode only)
+		uart.setTxCallback([](uint8_t ch) {
+			std::putchar(ch);
+			std::fflush(stdout);
+		});
+
 		// Run simulation
 		while (cpu.programEnd() == false)
 		{
 			cpu.clockCycle();
-			mac.clockCycle();
+			clockPeripherals();
 		}
 
 		// Dump final state

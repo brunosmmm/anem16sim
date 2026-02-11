@@ -102,10 +102,10 @@ public:
 	void write(addr_t address, data_t data) override;
 	std::string getName() const override { return "MAC"; }
 
-	void reset(void);
-	void clockCycle(void);
+	void reset() override;
+	void clockCycle() override;
 
-	bool getInterrupt(void) { return this->interrupt; }
+	bool getInterrupt() override { return this->interrupt; }
 
 };
 

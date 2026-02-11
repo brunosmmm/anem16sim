@@ -16,6 +16,10 @@
 #include <iosfwd>
 #include <optional>
 
+class ANEMPeripheralGPIO;
+class ANEMPeripheralTimer;
+class ANEMPeripheralUART;
+
 enum class StopReason { None, Breakpoint, Watchpoint, Halted };
 
 struct MemAccessInfo {
@@ -108,6 +112,11 @@ private:
 	EventCallback eventCallback;
 	TraceEventCallback traceCallback;
 
+	std::function<void()> periphClockFn;
+	ANEMPeripheralGPIO* gpioPtr = nullptr;
+	ANEMPeripheralTimer* timerPtr = nullptr;
+	ANEMPeripheralUART* uartPtr = nullptr;
+
 	bool checkBreakpoints();
 	bool checkWatchpoints();
 	std::optional<MemAccessInfo> getWatchAccess();
@@ -159,6 +168,15 @@ public:
 	// Callbacks
 	void setEventCallback(EventCallback cb) { eventCallback = std::move(cb); }
 	void setTraceCallback(TraceEventCallback cb) { traceCallback = std::move(cb); }
+
+	// Peripheral support
+	void setPeripheralClock(std::function<void()> fn) { periphClockFn = std::move(fn); }
+	void setGPIO(ANEMPeripheralGPIO* p) { gpioPtr = p; }
+	void setTimer(ANEMPeripheralTimer* p) { timerPtr = p; }
+	void setUART(ANEMPeripheralUART* p) { uartPtr = p; }
+	ANEMPeripheralGPIO* getGPIO() const { return gpioPtr; }
+	ANEMPeripheralTimer* getTimer() const { return timerPtr; }
+	ANEMPeripheralUART* getUART() const { return uartPtr; }
 };
 
 #endif /* DEBUG_ENGINE_H_ */

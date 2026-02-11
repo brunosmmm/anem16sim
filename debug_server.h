@@ -13,6 +13,11 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+#include <functional>
+
+class ANEMPeripheralGPIO;
+class ANEMPeripheralTimer;
+class ANEMPeripheralUART;
 
 class ANEMDebugServer
 {
@@ -59,6 +64,10 @@ private:
 	jsonrpc::json handleSnapshotSave(const jsonrpc::json& params);
 	jsonrpc::json handleSnapshotLoad(const jsonrpc::json& params);
 	jsonrpc::json handleInterrupt(const jsonrpc::json& params);
+	jsonrpc::json handleGPIORead(const jsonrpc::json& params);
+	jsonrpc::json handleGPIOWrite(const jsonrpc::json& params);
+	jsonrpc::json handleUartInject(const jsonrpc::json& params);
+	jsonrpc::json handlePeriphList();
 
 	// Simulation worker
 	void simLoop(std::stop_token stoken);
@@ -71,6 +80,12 @@ private:
 public:
 	ANEMDebugServer(ANEMCPU& cpu, int port = 6808);
 	void run();
+
+	// Peripheral support
+	void setPeripheralClock(std::function<void()> fn) { engine.setPeripheralClock(std::move(fn)); }
+	void setGPIO(ANEMPeripheralGPIO* p) { engine.setGPIO(p); }
+	void setTimer(ANEMPeripheralTimer* p) { engine.setTimer(p); }
+	void setUART(ANEMPeripheralUART* p) { engine.setUART(p); }
 };
 
 #endif /* DEBUG_SERVER_H_ */

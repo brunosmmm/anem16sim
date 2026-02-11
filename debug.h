@@ -9,6 +9,11 @@
 #include "debug_engine.h"
 #include <string>
 #include <vector>
+#include <functional>
+
+class ANEMPeripheralGPIO;
+class ANEMPeripheralTimer;
+class ANEMPeripheralUART;
 
 class ANEMDebugger
 {
@@ -36,10 +41,19 @@ private:
 	void cmdLoad(const std::vector<std::string>& args);
 	void cmdReset();
 	void cmdHelp();
+	void cmdGPIO(const std::vector<std::string>& args);
+	void cmdPeriph();
+	void cmdUartTx(const std::vector<std::string>& args);
 
 public:
 	ANEMDebugger(ANEMCPU& cpu, bool traceOn = false);
 	void run();  // main REPL loop
+
+	// Peripheral support
+	void setPeripheralClock(std::function<void()> fn) { engine.setPeripheralClock(std::move(fn)); }
+	void setGPIO(ANEMPeripheralGPIO* p) { engine.setGPIO(p); }
+	void setTimer(ANEMPeripheralTimer* p) { engine.setTimer(p); }
+	void setUART(ANEMPeripheralUART* p) { engine.setUART(p); }
 };
 
 #endif /* DEBUG_H_ */

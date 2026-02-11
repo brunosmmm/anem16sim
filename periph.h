@@ -14,8 +14,8 @@
 class ANEMMemMappedPeripheral
 {
 protected:
-	unsigned int length;
-	addr_t baseAddress;
+	unsigned int length = 0;
+	addr_t baseAddress = 0;
 
 public:
 	virtual ~ANEMMemMappedPeripheral() {}
@@ -23,6 +23,10 @@ public:
 	virtual data_t read(addr_t address) { return 0xFFFF; }
 	virtual void write(addr_t address, data_t data) { }
 	virtual std::string getName() const { return "Unknown"; }
+
+	virtual void reset() {}
+	virtual void clockCycle() {}
+	virtual bool getInterrupt() { return false; }
 
 	unsigned int getLength(void) { return length; }
 

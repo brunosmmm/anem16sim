@@ -23,150 +23,150 @@ enum ANEMSPCtl { spNone = 0, spPush, spPop, spRead, spWrite };
 
 struct f2d
 {
-	ANEMInstruction ireg;
+	ANEMInstruction ireg{};
 
-	bool bubble;
-	addr_t savedpc;
-	addr_t pc;  // PC of this instruction
+	bool bubble = false;
+	addr_t savedpc = 0;
+	addr_t pc = 0;  // PC of this instruction
 };
 
 //decode to execute "registers"
 struct d2e
 {
-	ANEMRegBnkOp reg_ctl;
-	ANEMAluOp alu_ctl;
-	ANEMAluFunc alu_func;
-	uint8_t alu_shamt;
+	ANEMRegBnkOp reg_ctl = regNOP;
+	ANEMAluOp alu_ctl = aluNOP;
+	ANEMAluFunc alu_func = aluADD;
+	uint8_t alu_shamt = 0;
 
-	uint8_t rega_sel;
-	uint8_t regb_sel;
+	uint8_t rega_sel = 0;
+	uint8_t regb_sel = 0;
 
-	data_t rega_out;
-	data_t regb_out;
+	data_t rega_out = 0;
+	data_t regb_out = 0;
 
 	//memory access
-	bool mem_enable;
-	bool mem_write;
+	bool mem_enable = false;
+	bool mem_write = false;
 
 	//immediate values
-	uint8_t imm_val;
+	uint8_t imm_val = 0;
 
 	//offset for memory access
-	uint8_t off_4;
+	uint8_t off_4 = 0;
 
 	//jumps
-	bool j_flag; //J and JAL types
-	bool jr_flag;
-	bool bz_flag;
-	bool bz_negate; // true for BZ_N (branch when Z=0), false for BZ/BZ_T
-	bool bhleq_flag;
+	bool j_flag = false; //J and JAL types
+	bool jr_flag = false;
+	bool bz_flag = false;
+	bool bz_negate = false; // true for BZ_N (branch when Z=0), false for BZ/BZ_T
+	bool bhleq_flag = false;
 
-	addr_t j_dest; //for J, JR and JAL
-	uint16_t bz_offset; // raw 12-bit branch offset (resolved in fetch, not decode)
+	addr_t j_dest = 0; //for J, JR and JAL
+	uint16_t bz_offset = 0; // raw 12-bit branch offset (resolved in fetch, not decode)
 
-	bool fwd_alu_alua;
-	bool fwd_alu_alub;
-	bool fwd_mem_alua;
-	bool fwd_mem_alub;
+	bool fwd_alu_alua = false;
+	bool fwd_alu_alub = false;
+	bool fwd_mem_alua = false;
+	bool fwd_mem_alub = false;
 
-	data_t fwd_alua;
-	data_t fwd_alub;
+	data_t fwd_alua = 0;
+	data_t fwd_alub = 0;
 
-	bool bubble;
+	bool bubble = false;
 
 	//special register logic
-	ANEMHILOOp hictl;
-	ANEMHILOOp loctl;
-	data_t hiout;
-	data_t loout;
+	ANEMHILOOp hictl = noOp;
+	ANEMHILOOp loctl = noOp;
+	data_t hiout = 0;
+	data_t loout = 0;
 
 	//saved pc for jal
-	addr_t savedpc;
+	addr_t savedpc = 0;
 
 	//stack pointer
-	ANEMSPCtl sp_ctl;
-	data_t sp_val;
-	bool alu_imm_sel;
+	ANEMSPCtl sp_ctl = spNone;
+	data_t sp_val = 0;
+	bool alu_imm_sel = false;
 
 	// Exception control
 	uint8_t exc_ctl = 0;  // 0=none, 1=MFEPC, 2=MFECA, 3=MTEPC
 	bool syscall_flag = false;
 	bool reti_flag = false;
 
-	addr_t pc;  // PC of this instruction
-	ANEMInstruction ireg;  // original instruction (for disassembly)
+	addr_t pc = 0;  // PC of this instruction
+	ANEMInstruction ireg{};  // original instruction (for disassembly)
 };
 
 //execute to memory "registers"
 struct e2m
 {
-	ANEMRegBnkOp reg_ctl;
-	ANEMAluOut  alu_out;
+	ANEMRegBnkOp reg_ctl = regNOP;
+	ANEMAluOut  alu_out{};
 
-	uint8_t rega_sel;
-	data_t rega_out;
+	uint8_t rega_sel = 0;
+	data_t rega_out = 0;
 
 	//memory
-	bool mem_enable;
-	bool mem_write;
+	bool mem_enable = false;
+	bool mem_write = false;
 
 	//immediate
-	uint8_t imm_val;
+	uint8_t imm_val = 0;
 
-	bool bubble;
+	bool bubble = false;
 
 	//special registers
-	ANEMHILOOp hictl;
-	ANEMHILOOp loctl;
-	data_t hiout;
-	data_t loout;
+	ANEMHILOOp hictl = noOp;
+	ANEMHILOOp loctl = noOp;
+	data_t hiout = 0;
+	data_t loout = 0;
 
-	addr_t savedpc;
+	addr_t savedpc = 0;
 
 	//stack pointer
-	ANEMSPCtl sp_ctl;
-	data_t sp_new;
-	data_t sp_addr;
+	ANEMSPCtl sp_ctl = spNone;
+	data_t sp_new = 0;
+	data_t sp_addr = 0;
 
 	// Exception control
 	uint8_t exc_ctl = 0;  // 0=none, 1=MFEPC, 2=MFECA, 3=MTEPC
 
-	addr_t pc;  // PC of this instruction
-	ANEMInstruction ireg;  // original instruction (for disassembly)
+	addr_t pc = 0;  // PC of this instruction
+	ANEMInstruction ireg{};  // original instruction (for disassembly)
 };
 
 //memory to writeback "registers"
 struct m2w
 {
-	ANEMRegBnkOp reg_ctl;
-	ANEMAluOut alu_out;
-	data_t mem_out;
+	ANEMRegBnkOp reg_ctl = regNOP;
+	ANEMAluOut alu_out{};
+	data_t mem_out = 0;
 
-	uint8_t rega_sel;
-	data_t rega_out; ///THIS MUST BE PRESENT IN ORDER TO FORWARD AN IMMEDIATE VALUE
+	uint8_t rega_sel = 0;
+	data_t rega_out = 0; ///THIS MUST BE PRESENT IN ORDER TO FORWARD AN IMMEDIATE VALUE
 	///@todo modify this in anem16pipe
 
 	//immediate
-	uint8_t imm_val;
+	uint8_t imm_val = 0;
 
-	bool bubble;
+	bool bubble = false;
 
-	ANEMHILOOp hictl;
-	ANEMHILOOp loctl;
-	data_t hiout;
-	data_t loout;
+	ANEMHILOOp hictl = noOp;
+	ANEMHILOOp loctl = noOp;
+	data_t hiout = 0;
+	data_t loout = 0;
 
-	addr_t savedpc;
+	addr_t savedpc = 0;
 
 	//stack pointer
-	ANEMSPCtl sp_ctl;
-	data_t sp_new;
+	ANEMSPCtl sp_ctl = spNone;
+	data_t sp_new = 0;
 
 	// Exception control
 	uint8_t exc_ctl = 0;  // 0=none, 1=MFEPC, 2=MFECA, 3=MTEPC
 
-	addr_t pc;  // PC of this instruction
-	ANEMInstruction ireg;  // original instruction (for disassembly)
+	addr_t pc = 0;  // PC of this instruction
+	ANEMInstruction ireg{};  // original instruction (for disassembly)
 };
 
 // Trace callback type
@@ -185,9 +185,9 @@ private:
 	ANEMAlu alu;
 
 	//special registers
-	data_t reghi;
-	data_t reglo;
-	data_t regsp;
+	data_t reghi = 0;
+	data_t reglo = 0;
+	data_t regsp = 0;
 
 	// Exception/interrupt registers
 	data_t epc = 0;        // Exception PC register
@@ -227,10 +227,10 @@ private:
 	unsigned int maxCycles = 10000;
 
 	//pipeline registers
-	struct f2d fetch_to_decode;
-	struct d2e decode_to_exec;
-	struct e2m exec_to_mem;
-	struct m2w mem_to_wb;
+	struct f2d fetch_to_decode{};
+	struct d2e decode_to_exec{};
+	struct e2m exec_to_mem{};
+	struct m2w mem_to_wb{};
 
 	//counters
 	ANEMCounters counters;

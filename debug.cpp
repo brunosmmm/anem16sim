@@ -5,6 +5,9 @@
 
 #include "debug.h"
 #include "disasm.h"
+#include "periph/gpio.h"
+#include "periph/timer.h"
+#include "periph/uart.h"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -359,6 +362,123 @@ void ANEMDebugger::cmdReset()
 	std::cout << "CPU reset." << std::endl;
 }
 
+void ANEMDebugger::cmdGPIO(const std::vector<std::string>& args)
+{
+	auto* gpio = engine.getGPIO();
+	if (!gpio)
+	{
+		std::cout << "GPIO peripheral not available." << std::endl;
+		return;
+	}
+
+	if (args.size() >= 3)
+	{
+		// gpio <port> <value> — set external pins
+		int port = std::stoi(args[1]);
+		if (port < 0 || port > 1)
+		{
+			std::cout << "Port must be 0 or 1." << std::endl;
+			return;
+		}
+		data_t value = parseAddr(args[2]);
+		gpio->setExternalPins(port, value);
+		std::cout << "Port " << port << " ext_pins = 0x" << std::hex << std::setfill('0')
+		          << std::setw(4) << value << std::dec << std::setfill(' ') << std::endl;
+		return;
+	}
+
+	// Show GPIO state
+	for (int p = 0; p < 2; p++)
+	{
+		std::cout << "Port " << (p == 0 ? "A" : "B") << ":" << std::hex << std::setfill('0')
+		          << "  data=0x" << std::setw(4) << gpio->getOutputLatch(p)
+		          << "  dir=0x" << std::setw(4) << gpio->getDirection(p)
+		          << "  ext=0x" << std::setw(4) << gpio->getExternalPins(p)
+		          << "  read=0x" << std::setw(4) << gpio->getReadback(p)
+		          << std::dec << std::setfill(' ') << std::endl;
+	}
+}
+
+void ANEMDebugger::cmdPeriph()
+{
+	auto* gpio = engine.getGPIO();
+	auto* timer = engine.getTimer();
+	auto* uart = engine.getUART();
+
+	std::cout << "=== Peripherals ===" << std::endl;
+
+	if (gpio)
+	{
+		std::cout << "GPIO:" << std::hex << std::setfill('0') << std::endl;
+		for (int p = 0; p < 2; p++)
+		{
+			std::cout << "  Port " << (p == 0 ? "A" : "B")
+			          << ": data=0x" << std::setw(4) << gpio->getOutputLatch(p)
+			          << " dir=0x" << std::setw(4) << gpio->getDirection(p)
+			          << " ext=0x" << std::setw(4) << gpio->getExternalPins(p)
+			          << std::endl;
+		}
+	}
+
+	if (timer)
+	{
+		std::cout << "Timer:" << std::hex << std::setfill('0')
+		          << " count=0x" << std::setw(4) << timer->getCount()
+		          << " ctrl=0x" << std::setw(4) << timer->getCtrl()
+		          << " status=0x" << std::setw(4) << timer->getStatus()
+		          << " compare=0x" << std::setw(4) << timer->getCompare()
+		          << std::endl;
+	}
+
+	if (uart)
+	{
+		std::cout << "UART:" << std::hex << std::setfill('0')
+		          << " ctrl=0x" << std::setw(4) << uart->getCtrl()
+		          << " status=0x" << std::setw(4) << uart->getStatusReg()
+		          << " baud=0x" << std::setw(4) << uart->getBaudDiv()
+		          << " tx_state=";
+		switch (uart->getTxState())
+		{
+		case UartTxState::IDLE:  std::cout << "IDLE";  break;
+		case UartTxState::START: std::cout << "START"; break;
+		case UartTxState::DATA:  std::cout << "DATA";  break;
+		case UartTxState::STOP:  std::cout << "STOP";  break;
+		}
+		std::cout << std::endl;
+	}
+
+	std::cout << std::dec << std::setfill(' ');
+}
+
+void ANEMDebugger::cmdUartTx(const std::vector<std::string>& args)
+{
+	auto* uart = engine.getUART();
+	if (!uart)
+	{
+		std::cout << "UART peripheral not available." << std::endl;
+		return;
+	}
+
+	if (args.size() < 3)
+	{
+		std::cout << "Usage: uart tx <string>" << std::endl;
+		return;
+	}
+
+	// Reconstruct string from args[2..end]
+	std::string data;
+	for (size_t i = 2; i < args.size(); i++)
+	{
+		if (i > 2) data += ' ';
+		data += args[i];
+	}
+
+	for (char ch : data)
+		uart->injectRxByte((uint8_t)ch);
+
+	std::cout << "Injected " << data.size() << " byte(s) into UART RX." << std::endl;
+}
+
 void ANEMDebugger::cmdHelp()
 {
 	std::cout << "Commands:" << std::endl;
@@ -373,6 +493,10 @@ void ANEMDebugger::cmdHelp()
 	std::cout << "  d <start> [N]  Disassemble instruction memory" << std::endl;
 	std::cout << "  p              Show pipeline state" << std::endl;
 	std::cout << "  t [on|off]     Toggle execution trace" << std::endl;
+	std::cout << "  gpio           Show GPIO state" << std::endl;
+	std::cout << "  gpio <p> <val> Set external pins (port 0 or 1)" << std::endl;
+	std::cout << "  periph         Show all peripheral states" << std::endl;
+	std::cout << "  uart tx <str>  Inject string into UART RX" << std::endl;
 	std::cout << "  stats          Show statistics" << std::endl;
 	std::cout << "  save <file>    Save state snapshot (JSON)" << std::endl;
 	std::cout << "  load <file>    Load state snapshot (JSON)" << std::endl;
@@ -453,6 +577,12 @@ void ANEMDebugger::run()
 				engine.deassertInterrupt();
 				std::cout << "INT deasserted." << std::endl;
 			}
+			else if (cmd == "gpio")
+				cmdGPIO(tokens);
+			else if (cmd == "periph")
+				cmdPeriph();
+			else if (cmd == "uart" && tokens.size() >= 2 && tokens[1] == "tx")
+				cmdUartTx(tokens);
 			else
 				std::cout << "Unknown command: " << cmd << ". Type 'h' for help." << std::endl;
 		}

@@ -22,6 +22,9 @@ sources = [
   'snapshot.cpp',
   'trace.cpp',
   'periph/mac.cpp',
+  'periph/gpio.cpp',
+  'periph/timer.cpp',
+  'periph/uart.cpp',
   'stats/stats.cpp',
 ]
 

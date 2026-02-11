@@ -54,6 +54,7 @@ StepResult DebugEngine::step(unsigned int count)
 
 		cpu.getDataMemory().clearAccessLog();
 		cpu.clockCycle();
+		if (periphClockFn) periphClockFn();
 
 		if (traceEnabled && traceCallback)
 		{
@@ -114,6 +115,7 @@ StepResult DebugEngine::runBatch(unsigned int batchSize)
 
 		cpu.getDataMemory().clearAccessLog();
 		cpu.clockCycle();
+		if (periphClockFn) periphClockFn();
 
 		if (traceEnabled && traceCallback)
 		{
