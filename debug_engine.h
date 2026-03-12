@@ -15,6 +15,8 @@
 #include <functional>
 #include <iosfwd>
 #include <optional>
+#include <unordered_map>
+#include <mutex>
 
 class ANEMPeripheralGPIO;
 class ANEMPeripheralTimer;
@@ -45,11 +47,14 @@ struct RegistersResult {
 	data_t epc;
 	data_t eca;
 	bool ien;
+	bool zFlag;
 };
 
 struct MemoryEntry {
 	addr_t address;
 	data_t value;
+	uint8_t heat;       // 0=cold, 255=hot (recent access)
+	bool lastWrite;     // true if last access was a write
 };
 
 struct DisasmEntry {
@@ -57,15 +62,26 @@ struct DisasmEntry {
 	std::string asmText;
 	uint16_t word;
 	bool current;  // PC points here
+	std::string symbol; // label at this address (empty if none)
+	std::string srcFile;
+	int srcLine = 0;
 };
 
 struct PipelineStage {
 	addr_t pc;
 	std::string asmText;
 	bool bubble;
+	int destReg = -1;  // register being written (-1 = none)
 	// Forwarding info (ID stage only)
 	bool fwdAluAlu = false;
 	bool fwdMemAlu = false;
+};
+
+struct HistoryEntry {
+	addr_t pc;
+	std::string asmText;
+	int destReg;  // -1 = no write
+	bool bubble;
 };
 
 struct PipelineResult {
@@ -74,7 +90,10 @@ struct PipelineResult {
 	PipelineStage idStage;
 	PipelineStage exStage;
 	PipelineStage memStage;
+	PipelineStage wbStage;   // last committed instruction
+	bool hasCommitted;       // true once pipeline has produced at least one commit
 	bool stalled;
+	bool zFlag;
 };
 
 struct StatsResult {
@@ -102,15 +121,34 @@ using TraceEventCallback = std::function<void(unsigned long long cycle,
 
 class DebugEngine
 {
+public:
+	using StateChangeCallback = std::function<void()>;
 private:
 	ANEMCPU& cpu;
 	std::set<addr_t> breakpoints;
 	std::set<addr_t> watchpoints;
 	bool traceEnabled = false;
 	bool halted = false;
+	bool debugMode = false; // GDB attached — skip programEnd() checks
+
+	// Last committed instruction (saved from mem_to_wb before each clockCycle)
+	m2w lastCommitted{};
+	bool hasCommitted = false;
+
+	// Execution history ring buffer
+	static constexpr size_t HISTORY_SIZE = 32;
+	std::vector<HistoryEntry> history;
+	void pushHistory(const m2w& committed);
+
+	// Memory heatmap: tracks recent access intensity per address
+	struct HeatEntry { uint8_t heat; bool lastWrite; };
+	std::unordered_map<addr_t, HeatEntry> memHeat;
+	void updateHeat();
 
 	EventCallback eventCallback;
 	TraceEventCallback traceCallback;
+	std::vector<StateChangeCallback> stateChangeCallbacks;
+	void notifyStateChange();
 
 	std::function<void()> periphClockFn;
 	ANEMPeripheralGPIO* gpioPtr = nullptr;
@@ -121,10 +159,15 @@ private:
 	bool checkWatchpoints();
 	std::optional<MemAccessInfo> getWatchAccess();
 
+	mutable std::recursive_mutex mtx;
+
 public:
+	std::unique_lock<std::recursive_mutex> lock() const { return std::unique_lock(mtx); }
+
 	DebugEngine(ANEMCPU& cpu, bool traceOn = false);
 
 	// Execution
+	void setDebugMode(bool enabled) { debugMode = enabled; }
 	StepResult step(unsigned int count = 1);
 	StepResult runBatch(unsigned int batchSize);
 
@@ -144,12 +187,17 @@ public:
 	std::vector<MemoryEntry> getMemory(addr_t start, addr_t count) const;
 	std::vector<DisasmEntry> disassemble(addr_t start, addr_t count) const;
 	PipelineResult getPipeline() const;
+	const std::vector<HistoryEntry>& getHistory() const { return history; }
 	StatsResult getStats() const;
 	void dumpFullStats(std::ostream& out) const;
 	StatusResult getStatus() const;
 
 	// Memory write
 	void writeMemory(addr_t addr, data_t value);
+
+	// Register write
+	void writeRegister(uint8_t reg, data_t value);
+	void setPC(addr_t pc);
 
 	// Snapshots
 	void saveSnapshot(const std::string& path, const std::string& programFile = "");
@@ -168,6 +216,7 @@ public:
 	// Callbacks
 	void setEventCallback(EventCallback cb) { eventCallback = std::move(cb); }
 	void setTraceCallback(TraceEventCallback cb) { traceCallback = std::move(cb); }
+	void addStateChangeCallback(StateChangeCallback cb) { std::lock_guard lk(mtx); stateChangeCallbacks.push_back(std::move(cb)); }
 
 	// Peripheral support
 	void setPeripheralClock(std::function<void()> fn) { periphClockFn = std::move(fn); }
