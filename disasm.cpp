@@ -229,6 +229,11 @@ void loadSymbols(const std::string& path)
         g_symbols[addr] = name;
 }
 
+void addSymbol(addr_t addr, const std::string& name)
+{
+    g_symbols[addr] = name;
+}
+
 void clearSymbols()
 {
     g_symbols.clear();
@@ -240,6 +245,72 @@ std::string lookupSymbol(addr_t addr)
     if (it != g_symbols.end())
         return it->second;
     return {};
+}
+
+// Source location map
+static std::unordered_map<addr_t, SourceLoc> g_srcLocs;
+
+void addSourceLoc(addr_t addr, const std::string& file, int line)
+{
+    g_srcLocs[addr] = {file, line};
+}
+
+SourceLoc lookupSourceLoc(addr_t addr)
+{
+    auto it = g_srcLocs.find(addr);
+    if (it != g_srcLocs.end())
+        return it->second;
+    return {};
+}
+
+void clearSourceLocs()
+{
+    g_srcLocs.clear();
+}
+
+// Variable mapping
+static std::vector<VarMapping> g_varmap;
+
+void loadVarmap(const std::string& path)
+{
+    std::ifstream f(path);
+    if (!f.is_open())
+        return;
+
+    g_varmap.clear();
+    std::string line;
+    while (std::getline(f, line)) {
+        if (line.empty() || line[0] == '#')
+            continue;
+        std::istringstream ss(line);
+        VarMapping v;
+        std::string startS, endS;
+        if (!(ss >> startS >> endS >> v.name >> v.location))
+            continue;
+        v.startPC = (addr_t)std::stoul(startS, nullptr, 16);
+        v.endPC = (addr_t)std::stoul(endS, nullptr, 16);
+        g_varmap.push_back(std::move(v));
+    }
+}
+
+void addVarMapping(addr_t startPC, addr_t endPC, const std::string& name, const std::string& loc)
+{
+    g_varmap.push_back({startPC, endPC, name, loc});
+}
+
+void clearVarmap()
+{
+    g_varmap.clear();
+}
+
+std::vector<VarMapping> lookupVarsAtPC(addr_t pc)
+{
+    std::vector<VarMapping> result;
+    for (const auto& v : g_varmap) {
+        if (pc >= v.startPC && pc < v.endPC)
+            result.push_back(v);
+    }
+    return result;
 }
 
 static int16_t signExt12(uint16_t val)
