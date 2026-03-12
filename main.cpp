@@ -8,6 +8,8 @@
 #include "cpu.h"
 #include "debug.h"
 #include "debug_server.h"
+#include "web_server.h"
+#include "gdb_stub.h"
 #include "disasm.h"
 #include "except.h"
 #include "trace.h"
@@ -20,16 +22,22 @@
 #include "periph/timer.h"
 #include "periph/uart.h"
 #include <cstdio>
+#include <memory>
+#include <thread>
 
 static void printUsage(const char* prog)
 {
 	std::cerr << "Usage: " << prog << " [options] <program>" << std::endl;
 	std::cerr << "  -d          Interactive debug mode" << std::endl;
 	std::cerr << "  -r [port]   Remote debug server (JSON-RPC over ZMQ, default port 6808)" << std::endl;
+	std::cerr << "  -w [port]   Web UI debug server (HTTP + WebSocket, default port 8080)" << std::endl;
+	std::cerr << "  -g [port]   GDB RSP stub (default port 1234)" << std::endl;
 	std::cerr << "  -t          Enable execution trace" << std::endl;
 	std::cerr << "  -T <file>   Write HW-compatible trace to file" << std::endl;
 	std::cerr << "  -o <file>   Save JSON state snapshot on completion" << std::endl;
 	std::cerr << "  -S <file>   Load symbol table (.sym) for disassembly" << std::endl;
+	std::cerr << "  -C <dir>    Source directory for C source display" << std::endl;
+	std::cerr << "  -V <file>   Load variable map (.varmap) for register annotations (auto-detected from ELF)" << std::endl;
 	std::cerr << "  -s          Print statistics on exit" << std::endl;
 	std::cerr << "  -m N        Set max cycles (default 10000)" << std::endl;
 	std::cerr << "  -h          Show help" << std::endl;
@@ -40,6 +48,10 @@ int main(int argc, char *argv[])
 	bool debugMode = false;
 	bool remoteMode = false;
 	int remotePort = 6808;
+	bool webMode = false;
+	int webPort = 8080;
+	bool gdbMode = false;
+	int gdbPort = 1234;
 	bool traceMode = false;
 	bool statsMode = false;
 	unsigned int maxCycles = 10000;
@@ -47,6 +59,8 @@ int main(int argc, char *argv[])
 	const char* hwTraceFile = nullptr;
 	const char* snapshotFile = nullptr;
 	const char* symFile = nullptr;
+	const char* sourceDir = nullptr;
+	const char* varmapFile = nullptr;
 
 	// Parse arguments
 	for (int i = 1; i < argc; i++)
@@ -64,6 +78,30 @@ int main(int argc, char *argv[])
 					i++;
 				} catch (...) {
 					// Not a number, use default port
+				}
+			}
+		}
+		else if (strcmp(argv[i], "-w") == 0)
+		{
+			webMode = true;
+			if (i + 1 < argc && argv[i + 1][0] != '-')
+			{
+				try {
+					webPort = std::stoi(argv[i + 1]);
+					i++;
+				} catch (...) {
+				}
+			}
+		}
+		else if (strcmp(argv[i], "-g") == 0)
+		{
+			gdbMode = true;
+			if (i + 1 < argc && argv[i + 1][0] != '-')
+			{
+				try {
+					gdbPort = std::stoi(argv[i + 1]);
+					i++;
+				} catch (...) {
 				}
 			}
 		}
@@ -113,6 +151,26 @@ int main(int argc, char *argv[])
 			else
 			{
 				std::cerr << "-S requires a file argument" << std::endl;
+				return 1;
+			}
+		}
+		else if (strcmp(argv[i], "-C") == 0)
+		{
+			if (i + 1 < argc)
+				sourceDir = argv[++i];
+			else
+			{
+				std::cerr << "-C requires a directory argument" << std::endl;
+				return 1;
+			}
+		}
+		else if (strcmp(argv[i], "-V") == 0)
+		{
+			if (i + 1 < argc)
+				varmapFile = argv[++i];
+			else
+			{
+				std::cerr << "-V requires a file argument" << std::endl;
 				return 1;
 			}
 		}
@@ -182,6 +240,20 @@ int main(int argc, char *argv[])
 			loadSymbols(p.substr(0, dot) + ".sym");
 	}
 
+	// Load variable map
+	if (varmapFile)
+	{
+		loadVarmap(varmapFile);
+	}
+	else
+	{
+		// Auto-detect: replace extension with .varmap
+		std::string p(progFile);
+		auto dot = p.rfind('.');
+		if (dot != std::string::npos)
+			loadVarmap(p.substr(0, dot) + ".varmap");
+	}
+
 	// Set up HW trace writer if requested
 	TraceWriter traceWriter;
 	if (hwTraceFile)
@@ -203,7 +275,42 @@ int main(int argc, char *argv[])
 		cpu.setIntPin(mac.getInterrupt() || timer.getInterrupt() || uart.getInterrupt());
 	};
 
-	if (remoteMode)
+	if (webMode || gdbMode)
+	{
+		// Shared debug engine for web UI and/or GDB stub
+		DebugEngine engine(cpu);
+		engine.setPeripheralClock(clockPeripherals);
+		engine.setGPIO(&gpio);
+		engine.setTimer(&timer);
+		engine.setUART(&uart);
+
+		// GDB stub runs in a background thread when combined with web UI
+		std::unique_ptr<GDBStub> gdb;
+		std::thread gdbThread;
+		if (gdbMode) {
+			cpu.setMaxCycles(UINT_MAX);
+			gdb = std::make_unique<GDBStub>(engine, gdbPort);
+			if (webMode) {
+				// Both active — GDB in background thread
+				gdbThread = std::thread([&gdb]() { gdb->run(); });
+			}
+		}
+
+		if (webMode) {
+			ANEMWebServer webServer(engine, webPort);
+			if (sourceDir) webServer.setSourceRoot(sourceDir);
+			webServer.run(); // Blocks
+		} else {
+			// GDB-only mode
+			gdb->run(); // Blocks
+		}
+
+		if (gdbThread.joinable()) {
+			// Web server exited — GDB thread will exit on next client disconnect
+			gdbThread.join();
+		}
+	}
+	else if (remoteMode)
 	{
 		ANEMDebugServer server(cpu, remotePort);
 		server.setPeripheralClock(clockPeripherals);
