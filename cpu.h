@@ -265,9 +265,11 @@ public:
 	void clockCycle(void);
 	bool programEnd(void);
 
-	void loadProgram(std::string fileName);
+	void loadProgram(const std::string &fileName);
 	void attachPeripheral(addr_t addr, ANEMMemMappedPeripheral *p) { this->dmem.attachPeripheral(addr,p); }
 	void setMaxCycles(unsigned int n) { this->maxCycles = n; }
+	void resetHaltDetection() { samePCCount = 0; drainCycles = -1; lastPC = pc; prevPC = 0; }
+	bool isStuckPC() const { return drainCycles >= 0; }
 
 	// Diagnostic output
 	void dumpRegisters(void);

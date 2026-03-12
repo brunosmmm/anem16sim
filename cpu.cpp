@@ -1140,13 +1140,16 @@ bool ANEMCPU::programEnd(void)
 
 }
 
-void ANEMCPU::loadProgram(std::string fileName)
+void ANEMCPU::loadProgram(const std::string &fileName)
 {
-
-	this->imem.loadProgram(fileName);
-
+	// Reset first so data memory is cleared before we load data sections into it
 	this->reset();
 
+	addr_t entry = this->imem.loadProgram(fileName, &this->dmem);
+
+	// Set PC to entry point (e.g. _start symbol from ELF)
+	if (entry != 0)
+		this->setPC(entry);
 }
 
 data_t ANEMCPU::getForwardedSP(void) const
