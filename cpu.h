@@ -93,6 +93,9 @@ struct d2e
 	bool syscall_flag = false;
 	bool reti_flag = false;
 
+	// LPM: load from instruction memory instead of data memory
+	bool lpm_flag = false;
+
 	addr_t pc = 0;  // PC of this instruction
 	ANEMInstruction ireg{};  // original instruction (for disassembly)
 };
@@ -130,6 +133,9 @@ struct e2m
 
 	// Exception control
 	uint8_t exc_ctl = 0;  // 0=none, 1=MFEPC, 2=MFECA, 3=MTEPC
+
+	// LPM: load from instruction memory instead of data memory
+	bool lpm_flag = false;
 
 	addr_t pc = 0;  // PC of this instruction
 	ANEMInstruction ireg{};  // original instruction (for disassembly)

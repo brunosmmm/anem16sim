@@ -181,6 +181,7 @@ void ANEMCPU::clockCycle(void)
 		dreg.sp_ctl = spNone;
 		dreg.syscall_flag = false;
 		dreg.reti_flag = false;
+		dreg.lpm_flag = false;
 		dreg.exc_ctl = 0;
 		dreg.bubble = true;
 		this->counters.countBubble();
@@ -367,6 +368,7 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	toexec.exc_ctl = 0;
 	toexec.syscall_flag = false;
 	toexec.reti_flag = false;
+	toexec.lpm_flag = false;
 	toexec.bubble = false;
 
 	//disable forwarding
@@ -530,6 +532,15 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 			toexec.hictl = noOp;
 			toexec.loctl = fromRegister;
 			break;
+		case ANEM_M1FUNC_LPM:
+			// LPM Rd, Rs: load imem[Rs] into Rd
+			// Rd is in bits[3:0] (func field), Rs is in bits[7:4] (regb field)
+			// Use aluOFFSET path: off_4=0 (set below) so ALU computes 0+Rs=Rs
+			toexec.reg_ctl = regLoadMEM;
+			toexec.alu_ctl = aluOFFSET;
+			toexec.mem_enable = true;
+			toexec.lpm_flag = true;
+			break;
 		case ANEM_M1FUNC_SYSCALL:
 			toexec.syscall_flag = true;
 			break;
@@ -663,7 +674,8 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	// Hardware: regbnk_sela uses instruction(3 downto 0) for these M1 sub-functions
 	if (i.ireg.opcode == ANEM_OPCODE_M1 &&
 	    (i.ireg.rega == ANEM_M1FUNC_MFHI || i.ireg.rega == ANEM_M1FUNC_MFLO ||
-	     i.ireg.rega == ANEM_M1FUNC_MTHI || i.ireg.rega == ANEM_M1FUNC_MTLO))
+	     i.ireg.rega == ANEM_M1FUNC_MTHI || i.ireg.rega == ANEM_M1FUNC_MTLO ||
+	     i.ireg.rega == ANEM_M1FUNC_LPM))
 	{
 		toexec.rega_sel = i.ireg.func;
 		toexec.rega_out = this->regbnk.r_read(i.ireg.func);
@@ -773,6 +785,12 @@ struct d2e ANEMCPU::p_decode(struct f2d i)
 	//offset
 	toexec.off_4 = i.ireg.off_4;
 
+	// LPM uses aluOFFSET with off_4=0 (address is purely from Rs in regb).
+	// Must override AFTER the general off_4 assignment above, which would
+	// otherwise set off_4 to the Rd field (bits 3:0 = func/off_4 alias).
+	if (toexec.lpm_flag)
+		toexec.off_4 = 0;
+
 	return toexec;
 
 }
@@ -802,6 +820,7 @@ struct e2m ANEMCPU::p_execute(struct d2e d)
 	tomem.ireg = d.ireg;
 	tomem.bubble = d.bubble;
 	tomem.exc_ctl = d.exc_ctl;
+	tomem.lpm_flag = d.lpm_flag;
 
 	//forwarding
 	if (this->fw_enable)
@@ -937,8 +956,14 @@ struct m2w ANEMCPU::p_mem(struct e2m e)
 
 		} else
 		{
-			//reads from memory
-			towb.mem_out = this->dmem.read(mem_addr);
+			//reads from memory (or instruction memory for LPM)
+			if (e.lpm_flag)
+				// LPM address is a byte address (from C/LLVM); convert to
+				// imem word address by shifting right by 1 (drop LSB).
+				// In VHDL: imem_addr <= alu_out(15 downto 1);
+				towb.mem_out = this->imem.fetch(mem_addr >> 1).toWord();
+			else
+				towb.mem_out = this->dmem.read(mem_addr);
 		}
 
 	}
@@ -1321,6 +1346,11 @@ bool ANEMCPU::detectZeroGapHazard(void) const
 		{
 			reads_rega = true;
 			src_a = instr.func;
+		}
+		// LPM reads address register from regb field (bits 7:4)
+		else if (instr.rega == ANEM_M1FUNC_LPM)
+		{
+			reads_regb = true;
 		}
 		break;
 	default:

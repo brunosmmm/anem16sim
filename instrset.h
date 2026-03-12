@@ -67,6 +67,7 @@
 #define ANEM_M1FUNC_MTLO 0xA
 #define ANEM_M1FUNC_SYSCALL 0xB
 #define ANEM_M1FUNC_M4      0xC
+#define ANEM_M1FUNC_LPM     0xD
 
 // M4 subfunctions in bits[7:4] (regb field)
 #define ANEM_M4SUB_RETI     0x0
