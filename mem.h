@@ -84,8 +84,12 @@ public:
 	ANEMInstructionMemory(uint32_t size);
 	ANEMInstruction fetch(addr_t address);
 
-	//load instructions from file
-	void loadProgram(std::string fileName);
+	//load instructions from file; returns entry point word address (0 if not found)
+	//dmem is optional; if provided, data sections (.rodata/.data) are loaded into it
+	addr_t loadProgram(std::string fileName, ANEMDataMemory *dmem = nullptr);
+
+private:
+	bool loadELF(const std::string &fileName, addr_t &entryAddr, ANEMDataMemory *dmem);
 
 };
 
