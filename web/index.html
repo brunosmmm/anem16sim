@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANEM16 Simulator</title>
+<style>
+:root {
+    --bg: #1e1e2e;
+    --bg-surface: #181825;
+    --bg-overlay: #313244;
+    --bg-highlight: #45475a;
+    --text: #cdd6f4;
+    --text-dim: #6c7086;
+    --text-bright: #f5f5f5;
+    --accent: #89b4fa;
+    --accent2: #a6e3a1;
+    --accent3: #f9e2af;
+    --red: #f38ba8;
+    --green: #a6e3a1;
+    --yellow: #f9e2af;
+    --blue: #89b4fa;
+    --mauve: #cba6f7;
+    --teal: #94e2d5;
+    --sky: #89dceb;
+    --border: #585b70;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+.app {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    height: 100vh;
+    gap: 1px;
+    background: var(--border);
+}
+/* -- Control Bar -- */
+.controls {
+    background: var(--bg-surface);
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.controls h1 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-right: 16px;
+    white-space: nowrap;
+}
+.btn {
+    background: var(--bg-overlay);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 5px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    transition: background 0.15s;
+}
+.btn:hover { background: var(--bg-highlight); }
+.btn:active { background: var(--accent); color: var(--bg); }
+.btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.btn.primary:hover { opacity: 0.85; }
+.btn.danger { border-color: var(--red); color: var(--red); }
+.btn.danger:hover { background: var(--red); color: var(--bg); }
+.status-bar {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+}
+.status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+.status-dot.connected { background: var(--green); }
+.status-dot.disconnected { background: var(--red); }
+.status-dot.running { background: var(--yellow); animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.4; } }
+kbd {
+    background: var(--bg-highlight);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+    color: var(--text-dim);
+}
+
+/* -- Pipeline -- */
+.pipeline-section {
+    background: var(--bg-surface);
+    padding: 6px 16px;
+}
+.section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+.pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.stage {
+    flex: 1;
+    max-width: 180px;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    text-align: center;
+    min-width: 100px;
+    position: relative;
+}
+.stage.bubble {
+    opacity: 0.4;
+    border-style: dashed;
+}
+.stage.stalled {
+    border-color: var(--yellow);
+    box-shadow: 0 0 6px rgba(249, 226, 175, 0.2);
+}
+.stage-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+}
+.stage-pc {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+.stage-instr {
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 2px;
+    min-height: 1.2em;
+    color: var(--text-bright);
+}
+.stage-arrow {
+    color: var(--text-dim);
+    font-size: 18px;
+    flex-shrink: 0;
+}
+.fwd-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 6px;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+.fwd-alu { background: var(--mauve); color: var(--bg); }
+.fwd-mem { background: var(--teal); color: var(--bg); }
+.stage.committed {
+    border-color: var(--green);
+    box-shadow: 0 0 6px rgba(166, 227, 161, 0.25);
+}
+.stage.committed .stage-label {
+    color: var(--green);
+}
+
+/* -- Main panels -- */
+.main-panels {
+    display: grid;
+    grid-template-columns: 320px 1fr 240px;
+    grid-template-rows: auto 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    overflow: hidden;
+    min-height: 0;
+}
+.main-panels > .panel-regs  { grid-row: 1; grid-column: 1; }
+.main-panels > .panel-mem   { grid-row: 2; grid-column: 1; }
+.main-panels > .panel-stack { grid-row: 3; grid-column: 1; }
+.main-panels > .disasm-panel { grid-row: 1 / 4; grid-column: 2; }
+.main-panels > .sidebar-right { grid-row: 1 / 4; grid-column: 3; }
+.panel {
+    background: var(--bg-surface);
+    padding: 8px;
+    overflow: hidden;
+    min-height: 0;
+}
+.panel .section-title {
+    margin-bottom: 6px;
+}
+
+/* Registers */
+.reg-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+}
+.reg-entry {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+.reg-entry:hover { background: var(--bg-overlay); }
+.reg-entry.changed {
+    background: rgba(166, 227, 161, 0.15);
+    transition: background 0.3s;
+}
+.reg-name {
+    color: var(--text-dim);
+    min-width: 30px;
+}
+.reg-name .reg-var {
+    display: block;
+    color: var(--mauve);
+    font-size: 0.85em;
+    font-weight: 600;
+    line-height: 1;
+    margin-top: 1px;
+}
+.reg-value {
+    color: var(--accent2);
+    font-weight: 500;
+}
+.special-regs {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+.special-regs .reg-entry {
+    grid-column: 1 / -1;
+}
+
+/* Z Flag indicator */
+.flag-bar {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    align-items: center;
+}
+.flag-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+}
+.flag-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+}
+.flag-dot.on {
+    background: var(--green);
+    border-color: var(--green);
+    box-shadow: 0 0 5px rgba(166, 227, 161, 0.5);
+}
+.flag-dot.off {
+    background: var(--bg-overlay);
+}
+.flag-label {
+    color: var(--text-dim);
+    font-weight: 600;
+}
+
+/* Pipeline dest register tag */
+.dest-reg-tag {
+    position: absolute;
+    bottom: 2px;
+    left: 6px;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--accent3);
+    color: var(--bg);
+}
+
+/* History panel */
+.history-view {
+    font-size: 11px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.history-entry {
+    display: flex;
+    padding: 1px 6px;
+    gap: 6px;
+}
+.history-entry:nth-child(odd) {
+    background: rgba(69, 71, 90, 0.2);
+}
+.history-pc {
+    color: var(--text-dim);
+    min-width: 45px;
+    flex-shrink: 0;
+}
+.history-asm {
+    color: var(--text);
+    flex: 1;
+}
+.history-reg {
+    color: var(--accent3);
+    min-width: 30px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Disassembly */
+.disasm-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+.disasm-view {
+    flex: 1;
+    overflow: hidden;
+    font-size: 12px;
+    min-height: 0;
+}
+.disasm-line {
+    display: flex;
+    padding: 1px 8px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+}
+.disasm-line:hover { background: var(--bg-overlay); }
+.disasm-line.current {
+    background: rgba(137, 180, 250, 0.12);
+    border-left-color: var(--accent);
+}
+.disasm-line.breakpoint {
+    border-left-color: var(--red);
+}
+.disasm-line.current.breakpoint {
+    background: rgba(243, 139, 168, 0.12);
+    border-left-color: var(--red);
+}
+.disasm-line.committed {
+    background: rgba(166, 227, 161, 0.08);
+    border-left-color: var(--green);
+}
+.disasm-line.committed .disasm-asm::after {
+    content: ' \2713';
+    color: var(--green);
+    font-size: 11px;
+}
+.disasm-addr {
+    color: var(--text-dim);
+    min-width: 55px;
+    flex-shrink: 0;
+}
+.disasm-hex {
+    color: var(--bg-highlight);
+    min-width: 55px;
+    flex-shrink: 0;
+}
+.disasm-asm {
+    color: var(--text);
+    flex: 1;
+}
+.asm-mne { color: var(--blue); font-weight: 500; }
+.asm-mne[data-tip] { cursor: default; }
+#isa-tooltip {
+    display: none;
+    position: fixed;
+    background: var(--bg-overlay);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 400;
+    white-space: pre-line;
+    z-index: 9999;
+    min-width: 280px;
+    max-width: 420px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    pointer-events: none;
+    line-height: 1.5;
+}
+#isa-tooltip b { color: var(--blue); }
+.asm-reg { color: var(--teal); }
+.asm-imm { color: var(--accent3); }
+.asm-sym { color: var(--mauve); }
+.asm-punc { color: var(--text-dim); }
+.disasm-symbol {
+    display: block;
+    color: var(--mauve);
+    font-weight: 600;
+    padding: 4px 8px 1px;
+    font-size: 12px;
+    border-top: 1px solid var(--bg-highlight);
+    margin-top: 2px;
+}
+.disasm-src {
+    display: block;
+    color: var(--text-dim);
+    font-size: 11px;
+    padding: 1px 8px;
+    border-top: 1px dashed var(--bg-highlight);
+    margin-top: 1px;
+    font-style: italic;
+}
+.disasm-src .src-file { color: var(--text-dim); font-style: normal; }
+.disasm-src .src-line { color: var(--text-dim); font-style: normal; }
+.disasm-controls {
+    display: flex;
+    gap: 6px;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+}
+.disasm-controls input {
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    width: 80px;
+}
+
+/* -- Stack panel -- */
+.panel-stack {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+.stack-view {
+    font-size: 12px;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+}
+.stack-entry {
+    display: flex;
+    padding: 1px 8px;
+    gap: 8px;
+}
+.stack-entry:hover { background: var(--bg-overlay); }
+.stack-entry.stack-top {
+    background: rgba(137, 180, 250, 0.12);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+.stack-offset {
+    color: var(--text-dim);
+    min-width: 40px;
+    flex-shrink: 0;
+}
+.stack-addr {
+    color: var(--text-dim);
+    min-width: 50px;
+    flex-shrink: 0;
+}
+.stack-val {
+    color: var(--accent3);
+    min-width: 50px;
+}
+.stack-annot {
+    color: var(--mauve);
+    font-size: 11px;
+}
+
+/* -- Memory panel -- */
+.panel-mem {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+.memory-view {
+    font-size: 12px;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+}
+.mem-line {
+    display: flex;
+    padding: 1px 8px;
+}
+.mem-line:hover { background: var(--bg-overlay); }
+.mem-addr {
+    color: var(--text-dim);
+    min-width: 55px;
+    flex-shrink: 0;
+}
+.mem-values {
+    display: flex;
+    gap: 10px;
+}
+.mem-val {
+    color: var(--accent3);
+    min-width: 45px;
+}
+.mem-controls {
+    display: flex;
+    gap: 6px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+}
+.mem-controls input {
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    width: 80px;
+}
+
+/* Right sidebar */
+.sidebar-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    overflow-y: auto;
+    min-height: 0;
+}
+.sidebar-right .panel { flex-shrink: 0; }
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 6px;
+}
+.stat-label { color: var(--text-dim); }
+.stat-value { color: var(--accent); font-weight: 500; }
+.periph-group {
+    margin-bottom: 6px;
+}
+.periph-group-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mauve);
+    margin-bottom: 2px;
+}
+.periph-row {
+    display: flex;
+    gap: 12px;
+    padding: 1px 6px;
+    font-size: 11px;
+}
+.periph-label { color: var(--text-dim); }
+.periph-val { color: var(--teal); }
+
+/* GPIO visual */
+.gpio-port {
+    margin-bottom: 8px;
+}
+.gpio-port-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+.gpio-port-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    min-width: 40px;
+}
+.gpio-port-hex {
+    font-size: 10px;
+    color: var(--teal);
+    font-family: monospace;
+}
+.gpio-pins {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+}
+.gpio-pin-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+}
+.gpio-pin-num {
+    font-size: 8px;
+    color: var(--text-dim);
+    line-height: 1;
+}
+.gpio-pin {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+}
+.gpio-pin.output {
+    cursor: default;
+}
+.gpio-pin.input {
+    cursor: pointer;
+    border-style: dashed;
+}
+.gpio-pin.input:hover {
+    transform: scale(1.3);
+    border-color: var(--accent);
+}
+.gpio-pin.on.output {
+    background: var(--green);
+    border-color: var(--green);
+    box-shadow: 0 0 5px rgba(166, 227, 161, 0.5);
+}
+.gpio-pin.off.output {
+    background: var(--bg-overlay);
+}
+.gpio-pin.on.input {
+    background: var(--sky);
+    border-color: var(--sky);
+    box-shadow: 0 0 5px rgba(137, 220, 235, 0.4);
+}
+.gpio-pin.off.input {
+    background: var(--bg-overlay);
+}
+.gpio-nibble-sep {
+    width: 4px;
+    flex-shrink: 0;
+}
+.gpio-legend {
+    display: flex;
+    gap: 10px;
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    padding-left: 2px;
+}
+.gpio-legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin-right: 3px;
+}
+.gpio-legend-dot.out { background: var(--green); }
+.gpio-legend-dot.in { background: var(--sky); border: 1px dashed var(--sky); }
+
+/* Breakpoints panel */
+.bp-list {
+    font-size: 11px;
+}
+.bp-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 6px;
+}
+.bp-entry:hover { background: var(--bg-overlay); }
+.bp-remove {
+    cursor: pointer;
+    color: var(--red);
+    font-size: 10px;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 100;
+}
+.toast.show { opacity: 1; }
+.toast.error { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+<div class="app">
+    <!-- Control Bar -->
+    <div class="controls">
+        <h1>ANEM16</h1>
+        <button class="btn primary" onclick="doStep()" title="Step one cycle (S)">Step <kbd>S</kbd></button>
+        <button class="btn" onclick="doStepN()" title="Step N cycles">Step N</button>
+        <button class="btn" onclick="doContinue()" title="Run (C)">Run <kbd>C</kbd></button>
+        <button class="btn" onclick="doPause()" title="Pause (P)">Pause <kbd>P</kbd></button>
+        <button class="btn danger" onclick="doReset()" title="Reset (R)">Reset <kbd>R</kbd></button>
+        <div class="status-bar">
+            <span><span class="status-dot" id="conn-dot"></span><span id="conn-text">Connecting</span></span>
+            <span>Cycle: <strong id="cycle-count">0</strong></span>
+            <span>PC: <strong id="pc-display">0x0000</strong></span>
+            <span id="sim-status">Stopped</span>
+        </div>
+    </div>
+
+    <!-- Pipeline -->
+    <div class="pipeline-section">
+        <div class="section-title">Pipeline</div>
+        <div class="pipeline">
+            <div class="stage" id="stage-if">
+                <div class="stage-label">IF</div>
+                <div class="stage-pc" id="if-pc">-</div>
+                <div class="stage-instr" id="if-instr">-</div>
+            </div>
+            <div class="stage-arrow">&rarr;</div>
+            <div class="stage" id="stage-id">
+                <div class="stage-label">ID</div>
+                <div class="stage-pc" id="id-pc">-</div>
+                <div class="stage-instr" id="id-instr">-</div>
+            </div>
+            <div class="stage-arrow">&rarr;</div>
+            <div class="stage" id="stage-ex">
+                <div class="stage-label">EX</div>
+                <div class="stage-pc" id="ex-pc">-</div>
+                <div class="stage-instr" id="ex-instr">-</div>
+            </div>
+            <div class="stage-arrow">&rarr;</div>
+            <div class="stage" id="stage-mem">
+                <div class="stage-label">MEM</div>
+                <div class="stage-pc" id="mem-pc">-</div>
+                <div class="stage-instr" id="mem-instr">-</div>
+            </div>
+            <div class="stage-arrow">&rarr;</div>
+            <div class="stage" id="stage-wb">
+                <div class="stage-label">WB</div>
+                <div class="stage-pc" id="wb-pc">-</div>
+                <div class="stage-instr" id="wb-instr">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Panels: Registers/Memory | Disassembly | Sidebar -->
+    <div class="main-panels">
+        <div class="panel panel-regs">
+            <div class="section-title">Registers</div>
+            <div class="reg-grid" id="reg-grid">
+                <!-- GPRs populated by JS -->
+            </div>
+            <div class="special-regs" id="special-regs">
+                <!-- PC, SP, HI, LO, EPC, ECA, IEN -->
+            </div>
+            <div class="flag-bar">
+                <div class="flag-indicator">
+                    <span class="flag-label">Z</span>
+                    <div class="flag-dot" id="z-flag-dot"></div>
+                </div>
+            </div>
+        </div>
+        <div class="panel panel-mem">
+            <div class="section-title">Data Memory</div>
+            <div class="mem-controls">
+                <input type="text" id="mem-addr" placeholder="Address" value="0x0000">
+                <button class="btn" onclick="goToMemAddr()">Go</button>
+                <input type="text" id="mem-count" placeholder="Count" value="16">
+            </div>
+            <div class="memory-view" id="memory-view">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        <div class="panel panel-stack">
+            <div class="section-title">Stack</div>
+            <div class="stack-view" id="stack-view">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        <div class="panel disasm-panel">
+            <div class="section-title">Disassembly</div>
+            <div class="disasm-controls">
+                <input type="text" id="disasm-addr" placeholder="Address" value="0x0000">
+                <button class="btn" onclick="goToDisasmAddr()">Go</button>
+                <button class="btn" onclick="goToPC()">Go to PC</button>
+            </div>
+            <div class="disasm-view" id="disasm-view">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        <div class="sidebar-right">
+            <div class="panel">
+                <div class="section-title">Statistics</div>
+                <div id="stats-view">
+                    <div class="stat-row"><span class="stat-label">Cycles</span><span class="stat-value" id="st-cycles">0</span></div>
+                    <div class="stat-row"><span class="stat-label">Instructions</span><span class="stat-value" id="st-instrs">0</span></div>
+                    <div class="stat-row"><span class="stat-label">Stalls</span><span class="stat-value" id="st-stalls">0</span></div>
+                    <div class="stat-row"><span class="stat-label">Bubbles</span><span class="stat-value" id="st-bubbles">0</span></div>
+                    <div class="stat-row"><span class="stat-label">FWD ALU&rarr;ALU</span><span class="stat-value" id="st-faa">0</span></div>
+                    <div class="stat-row"><span class="stat-label">FWD MEM&rarr;ALU</span><span class="stat-value" id="st-fma">0</span></div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="section-title">Execution History</div>
+                <div class="history-view" id="history-view">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            <div class="panel">
+                <div class="section-title">Peripherals</div>
+                <div id="periph-view">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            <div class="panel">
+                <div class="section-title">Breakpoints</div>
+                <div class="bp-list" id="bp-list">
+                    <div style="color: var(--text-dim); padding: 4px 6px; font-size: 11px;">Click disassembly line to toggle</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="isa-tooltip"></div>
+
+<script>
+'use strict';
+
+// ---- State ----
+let ws = null;
+let rpcId = 1;
+const pending = {};
+let prevRegs = {};
+let breakpoints = new Set();
+let isRunning = false;
+let currentPC = 0;
+let committedPC = -1;  // PC of last committed instruction (-1 = none)
+let gpioExtPins = [0, 0];  // track external pin state for toggle
+let disasmBase = 0;
+let memBase = 0;
+let memCount = 32;
+
+// ---- WebSocket ----
+function connect() {
+    const url = 'ws://' + location.host + '/ws';
+    console.log('[WS] Connecting to', url);
+
+    try {
+        ws = new WebSocket(url);
+    } catch (e) {
+        console.error('[WS] Failed to create WebSocket:', e);
+        toast('WebSocket create failed: ' + e.message, true);
+        setTimeout(connect, 2000);
+        return;
+    }
+
+    ws.onopen = () => {
+        console.log('[WS] Connected');
+        setConnStatus(true);
+        refreshAll();
+    };
+
+    ws.onclose = (evt) => {
+        console.log('[WS] Closed: code=' + evt.code + ' reason=' + evt.reason + ' clean=' + evt.wasClean);
+        setConnStatus(false);
+        setTimeout(connect, 2000);
+    };
+
+    ws.onerror = (evt) => {
+        console.error('[WS] Error:', evt);
+    };
+
+    ws.onmessage = (evt) => {
+        let msg;
+        try {
+            msg = JSON.parse(evt.data);
+        } catch (e) {
+            console.error('[WS] Bad JSON:', evt.data);
+            return;
+        }
+
+        // Notification (no id)
+        if (msg.method) {
+            handleNotification(msg.method, msg.params || {});
+            return;
+        }
+
+        // Response
+        if (msg.id !== undefined && pending[msg.id]) {
+            const p = pending[msg.id];
+            delete pending[msg.id];
+            if (msg.error) p.reject(msg.error);
+            else p.resolve(msg.result);
+        }
+    };
+}
+
+function rpc(method, params = {}) {
+    return new Promise((resolve, reject) => {
+        if (!ws || ws.readyState !== WebSocket.OPEN)
+            return reject({message: 'Not connected'});
+        const id = rpcId++;
+        pending[id] = { resolve, reject };
+        ws.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
+    });
+}
+
+function handleNotification(method, params) {
+    if (method === 'reload') {
+        console.log('[Live Reload] Reloading...');
+        location.reload();
+        return;
+    }
+    if (method === 'stopped') {
+        isRunning = false;
+        updateSimStatus();
+        toast('Stopped: ' + params.reason);
+        refreshAll();
+    }
+    if (method === 'stateChanged') {
+        refreshAll();
+    }
+}
+
+// ---- Connection status ----
+function setConnStatus(connected) {
+    const dot = document.getElementById('conn-dot');
+    const text = document.getElementById('conn-text');
+    if (connected) {
+        dot.className = 'status-dot connected';
+        text.textContent = 'Connected';
+    } else {
+        dot.className = 'status-dot disconnected';
+        text.textContent = 'Disconnected';
+    }
+}
+
+function updateSimStatus() {
+    const el = document.getElementById('sim-status');
+    if (isRunning) {
+        el.textContent = 'Running';
+        el.style.color = 'var(--yellow)';
+        document.getElementById('conn-dot').className = 'status-dot running';
+    } else {
+        el.textContent = 'Stopped';
+        el.style.color = 'var(--text)';
+        document.getElementById('conn-dot').className = 'status-dot connected';
+    }
+}
+
+// ---- Actions ----
+async function doStep() {
+    try {
+        await rpc('step', { count: 1 });
+        refreshAll();
+    } catch (e) { toast('Error: ' + (e.message || e), true); }
+}
+
+async function doStepN() {
+    const n = prompt('Step count:', '10');
+    if (!n) return;
+    try {
+        await rpc('step', { count: parseInt(n) });
+        refreshAll();
+    } catch (e) { toast('Error: ' + (e.message || e), true); }
+}
+
+async function doContinue() {
+    try {
+        await rpc('continue');
+        isRunning = true;
+        updateSimStatus();
+    } catch (e) { toast('Error: ' + (e.message || e), true); }
+}
+
+async function doPause() {
+    try {
+        await rpc('pause');
+        isRunning = false;
+        updateSimStatus();
+        refreshAll();
+    } catch (e) { toast('Error: ' + (e.message || e), true); }
+}
+
+async function doReset() {
+    try {
+        await rpc('reset');
+        isRunning = false;
+        updateSimStatus();
+        refreshAll();
+    } catch (e) { toast('Error: ' + (e.message || e), true); }
+}
+
+async function toggleBreakpoint(addr) {
+    try {
+        if (breakpoints.has(addr)) {
+            await rpc('breakpoint.remove', { address: addr });
+            breakpoints.delete(addr);
+        } else {
+            await rpc('breakpoint.add', { address: addr });
+            breakpoints.add(addr);
+        }
+        refreshDisasm();
+        refreshBreakpoints();
+    } catch (e) { toast('Error: ' + (e.message || e), true); }
+}
+
+// ---- Refresh ----
+async function refreshAll() {
+    try {
+        const [regs, pipeline, status, stats, periph] = await Promise.all([
+            rpc('registers'),
+            rpc('pipeline'),
+            rpc('status'),
+            rpc('stats'),
+            rpc('periph.list')
+        ]);
+        updateRegisters(regs);
+        updatePipeline(pipeline);
+        updateStatus(status);
+        updateStats(stats);
+        updatePeripherals(periph);
+
+        // Disassembly centered on PC
+        currentPC = parseInt(regs.pc, 16);
+        disasmBase = Math.max(0, currentPC - 10);
+        await refreshDisasm();
+        await refreshMemory();
+        await refreshStack(parseInt(regs.sp, 16));
+        await refreshBreakpoints();
+    } catch (e) {
+        console.error('Refresh error:', e);
+    }
+}
+
+async function refreshDisasm() {
+    try {
+        const data = await rpc('disassemble', { address: '0x' + disasmBase.toString(16), count: 40 });
+        updateDisassembly(data);
+    } catch (e) { console.error('Disasm error:', e); }
+}
+
+async function refreshMemory() {
+    try {
+        const data = await rpc('memory.read', {
+            address: '0x' + memBase.toString(16),
+            count: memCount
+        });
+        updateMemory(data);
+    } catch (e) { console.error('Memory error:', e); }
+}
+
+const STACK_BASE = 0xFFCF;
+
+async function refreshStack(sp) {
+    if (sp === undefined || sp >= STACK_BASE) {
+        document.getElementById('stack-view').innerHTML =
+            '<div style="color:var(--text-dim);padding:4px 8px;font-size:11px">Stack empty</div>';
+        return;
+    }
+    try {
+        const count = Math.min(STACK_BASE - sp, 32);
+        const data = await rpc('memory.read', {
+            address: '0x' + sp.toString(16),
+            count: count
+        });
+        updateStack(data, sp);
+    } catch (e) { console.error('Stack error:', e); }
+}
+
+function updateStack(data, sp) {
+    const view = document.getElementById('stack-view');
+    let html = '';
+    const entries = data.data;
+    for (let i = 0; i < entries.length; i++) {
+        const offset = i;
+        const isTop = (i === 0);
+        const cls = isTop ? 'stack-entry stack-top' : 'stack-entry';
+        const val = parseInt(entries[i].value, 16);
+        const sym = lookupSymbolClient(val);
+        html += '<div class="' + cls + '">'
+             + '<span class="stack-offset">SP+' + offset + '</span>'
+             + '<span class="stack-addr">' + entries[i].addr + '</span>'
+             + '<span class="stack-val">' + entries[i].value + '</span>'
+             + (sym ? '<span class="stack-annot">' + escHtml(sym) + '</span>' : '')
+             + '</div>';
+    }
+    view.innerHTML = html;
+}
+
+function lookupSymbolClient(val) {
+    // Check if value looks like a return address (matches a known disasm symbol)
+    // This is a best-effort hint; we don't have the full symbol table client-side
+    return '';
+}
+
+async function refreshBreakpoints() {
+    try {
+        const data = await rpc('breakpoint.list');
+        breakpoints = new Set(data.breakpoints || []);
+        updateBreakpointList();
+    } catch (e) { console.error('BP error:', e); }
+}
+
+// ---- Update UI ----
+function updateRegisters(regs) {
+    const grid = document.getElementById('reg-grid');
+    const special = document.getElementById('special-regs');
+    let html = '';
+
+    const vars = regs.vars || {};
+    for (let i = 0; i < 16; i++) {
+        const name = 'R' + i;
+        const val = regs.gpr[i];
+        const changed = prevRegs[name] !== undefined && prevRegs[name] !== val;
+        const varName = vars[name] || '';
+        html += '<div class="reg-entry' + (changed ? ' changed' : '') + '">'
+             + '<span class="reg-name">' + name
+             + (varName ? '<span class="reg-var">' + varName + '</span>' : '')
+             + '</span>'
+             + '<span class="reg-value">' + val + '</span>'
+             + '</div>';
+        prevRegs[name] = val;
+    }
+    grid.innerHTML = html;
+
+    const specials = [
+        ['PC', regs.pc], ['SP', regs.sp],
+        ['HI', regs.hi], ['LO', regs.lo],
+        ['EPC', regs.epc], ['ECA', regs.eca],
+        ['IEN', regs.ien ? '1' : '0']
+    ];
+    let shtml = '<div class="reg-grid">';
+    for (const [name, val] of specials) {
+        const changed = prevRegs[name] !== undefined && prevRegs[name] !== val;
+        shtml += '<div class="reg-entry' + (changed ? ' changed' : '') + '">'
+              + '<span class="reg-name">' + name + '</span>'
+              + '<span class="reg-value">' + val + '</span></div>';
+        prevRegs[name] = val;
+    }
+    shtml += '</div>';
+    special.innerHTML = shtml;
+
+    document.getElementById('pc-display').textContent = regs.pc;
+}
+
+function updatePipeline(p) {
+    const stages = [
+        ['if', p.stages.IF],
+        ['id', p.stages.ID],
+        ['ex', p.stages.EX],
+        ['mem', p.stages.MEM],
+        ['wb', p.stages.WB]
+    ];
+
+    for (const [id, s] of stages) {
+        const el = document.getElementById('stage-' + id);
+        el.classList.toggle('bubble', s.bubble);
+        el.classList.toggle('stalled', p.stalled && id === 'if');
+        el.classList.toggle('committed', id === 'wb' && s.committed === true);
+        document.getElementById(id + '-pc').textContent = s.pc;
+        document.getElementById(id + '-instr').textContent = s.bubble ? '(bubble)' : s.asm;
+
+        // Remove old dynamic tags
+        el.querySelectorAll('.fwd-indicator, .dest-reg-tag').forEach(e => e.remove());
+
+        // Destination register tag
+        if (s.destReg !== undefined && s.destReg >= 0) {
+            const tag = document.createElement('span');
+            tag.className = 'dest-reg-tag';
+            tag.textContent = '\u2192R' + s.destReg;
+            el.appendChild(tag);
+        }
+
+        if (id === 'id') {
+            if (s.fwd_alu_alu) {
+                const tag = document.createElement('span');
+                tag.className = 'fwd-indicator fwd-alu';
+                tag.textContent = 'FWD:ALU';
+                el.appendChild(tag);
+            }
+            if (s.fwd_mem_alu) {
+                const tag = document.createElement('span');
+                tag.className = 'fwd-indicator fwd-mem';
+                tag.textContent = 'FWD:MEM';
+                el.appendChild(tag);
+            }
+        }
+    }
+
+    // Track committed PC for disassembly marking
+    const wb = p.stages.WB;
+    committedPC = (wb && wb.committed) ? parseInt(wb.pc, 16) : -1;
+
+    // Z flag
+    const zDot = document.getElementById('z-flag-dot');
+    zDot.className = 'flag-dot ' + (p.zFlag ? 'on' : 'off');
+
+    // Execution history
+    updateHistory(p.history || []);
+
+    document.getElementById('cycle-count').textContent = p.cycle;
+}
+
+function updateHistory(entries) {
+    const view = document.getElementById('history-view');
+    let html = '';
+    // Show most recent at top
+    for (let i = entries.length - 1; i >= 0; i--) {
+        const e = entries[i];
+        const regStr = (e.destReg !== undefined && e.destReg >= 0) ? '\u2192R' + e.destReg : '';
+        html += '<div class="history-entry">'
+             + '<span class="history-pc">' + e.pc + '</span>'
+             + '<span class="history-asm">' + escHtml(e.asm) + '</span>'
+             + '<span class="history-reg">' + regStr + '</span>'
+             + '</div>';
+    }
+    if (!html) html = '<div style="color:var(--text-dim);padding:4px 6px;font-size:11px;">No instructions committed yet</div>';
+    view.innerHTML = html;
+}
+
+function updateStatus(s) {
+    isRunning = s.running;
+    updateSimStatus();
+}
+
+function updateStats(s) {
+    document.getElementById('st-cycles').textContent = s.cycles;
+    document.getElementById('st-instrs').textContent = s.instructions;
+    document.getElementById('st-stalls').textContent = s.stalls;
+    document.getElementById('st-bubbles').textContent = s.bubbles;
+    document.getElementById('st-faa').textContent = s.fwd_alu_alu;
+    document.getElementById('st-fma').textContent = s.fwd_mem_alu;
+}
+
+// Instruction reference loaded from /isa_ref.json at startup
+let ISA_REF = {};
+fetch('/isa_ref.json').then(r => r.json()).then(data => { ISA_REF = data; }).catch(() => {});
+
+function highlightAsm(text) {
+    // Tokenize and highlight assembly: MNEMONIC operands
+    // Split into mnemonic and rest
+    const m = text.match(/^(\S+)(.*)/);
+    if (!m) return escHtml(text);
+    const mne = m[1];
+    const rest = m[2];
+    const ref = ISA_REF[mne];
+    let tipAttr = '';
+    if (ref) {
+        let tip = ref.summary;
+        if (ref.encoding) tip += '\n' + ref.encoding;
+        if (ref.pipeline) tip += '\n' + ref.pipeline;
+        if (ref.notes) tip += '\n' + ref.notes;
+        tipAttr = ' data-tip="' + escHtml(tip).replace(/"/g, '&quot;') + '"';
+    }
+    let out = '<span class="asm-mne"' + tipAttr + '>' + escHtml(mne) + '</span>';
+    if (!rest) return out;
+    // Highlight tokens in the operand part
+    out += rest.replace(/(R\d+)|(0x[0-9A-Fa-f]+|#-?\d+|-?\d+(?=\)))|([(),])|([A-Za-z_]\w*)/g,
+        function(match, reg, imm, punc, sym) {
+            if (reg) return '<span class="asm-reg">' + reg + '</span>';
+            if (imm) return '<span class="asm-imm">' + imm + '</span>';
+            if (punc) return '<span class="asm-punc">' + punc + '</span>';
+            if (sym) return '<span class="asm-sym">' + sym + '</span>';
+            return match;
+        });
+    return out;
+}
+
+function updateDisassembly(data) {
+    const view = document.getElementById('disasm-view');
+    let html = '';
+    let lastSrcKey = '';
+    for (const instr of data.instructions) {
+        if (instr.symbol) {
+            html += '<div class="disasm-symbol">' + escHtml(instr.symbol) + ':</div>';
+        }
+        // Source location marker (show when file:line changes)
+        if (instr.srcFile) {
+            const srcKey = instr.srcFile + ':' + instr.srcLine;
+            if (srcKey !== lastSrcKey) {
+                const loc = '<span class="src-file">' + escHtml(instr.srcFile)
+                          + '</span>:<span class="src-line">' + instr.srcLine + '</span>';
+                const srcText = instr.srcText ? ' ' + escHtml(instr.srcText.trim()) : '';
+                html += '<div class="disasm-src">' + loc + srcText + '</div>';
+                lastSrcKey = srcKey;
+            }
+        }
+        const isCurrent = instr.current;
+        const isBP = breakpoints.has(instr.addr);
+        const isCommitted = committedPC >= 0 && parseInt(instr.addr, 16) === committedPC;
+        let cls = 'disasm-line';
+        if (isCurrent) cls += ' current';
+        if (isBP) cls += ' breakpoint';
+        if (isCommitted && !isCurrent) cls += ' committed';
+        html += '<div class="' + cls + '" onclick="toggleBreakpoint(\'' + instr.addr + '\')">'
+             + '<span class="disasm-addr">' + instr.addr + '</span>'
+             + '<span class="disasm-hex">' + instr.word + '</span>'
+             + '<span class="disasm-asm">' + highlightAsm(instr.asm) + '</span>'
+             + '</div>';
+    }
+    view.innerHTML = html;
+
+    // Scroll current into view
+    const cur = view.querySelector('.current');
+    if (cur) cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function heatColor(heat, isWrite) {
+    if (heat <= 0) return '';
+    const a = (heat / 255) * 0.6;
+    if (isWrite) return 'rgba(243,139,168,' + a + ')';  // red for writes
+    return 'rgba(137,180,250,' + a + ')';                // blue for reads
+}
+
+function updateMemory(data) {
+    const view = document.getElementById('memory-view');
+    let html = '';
+    const entries = data.data;
+    for (let i = 0; i < entries.length; i += 4) {
+        const addr = entries[i].addr;
+        html += '<div class="mem-line"><span class="mem-addr">' + addr + '</span><span class="mem-values">';
+        for (let j = 0; j < 4 && (i + j) < entries.length; j++) {
+            const e = entries[i + j];
+            const bg = e.heat ? ' style="background:' + heatColor(e.heat, e.write) + ';border-radius:2px"' : '';
+            html += '<span class="mem-val"' + bg + '>' + e.value + '</span>';
+        }
+        html += '</span></div>';
+    }
+    view.innerHTML = html;
+}
+
+function renderGpioPort(port) {
+    const portIdx = port.port;
+    const dir = parseInt(port.dir, 16);
+    const data = parseInt(port.data, 16);
+    const ext = parseInt(port.ext, 16);
+    gpioExtPins[portIdx] = ext;
+
+    // Compute readback: output bits from latch, input bits from ext_pins
+    const readback = (data & dir) | (ext & ~dir & 0xFFFF);
+
+    let pinsHtml = '<div class="gpio-pins">';
+    for (let bit = 15; bit >= 0; bit--) {
+        const isOutput = (dir >> bit) & 1;
+        const isOn = isOutput ? ((data >> bit) & 1) : ((ext >> bit) & 1);
+        const mode = isOutput ? 'output' : 'input';
+        const state = isOn ? 'on' : 'off';
+        const title = 'Pin ' + bit + ' (' + mode + '): ' + (isOn ? 'HIGH' : 'LOW');
+        const onclick = isOutput ? '' : ' onclick="toggleGpioPin(' + portIdx + ',' + bit + ')"';
+
+        pinsHtml += '<div class="gpio-pin-group">'
+            + '<span class="gpio-pin-num">' + bit + '</span>'
+            + '<div class="gpio-pin ' + mode + ' ' + state + '" title="' + title + '"' + onclick + '></div>'
+            + '</div>';
+        // Nibble separator
+        if (bit > 0 && bit % 4 === 0) pinsHtml += '<div class="gpio-nibble-sep"></div>';
+    }
+    pinsHtml += '</div>';
+
+    return '<div class="gpio-port">'
+        + '<div class="gpio-port-header">'
+        + '<span class="gpio-port-name">Port ' + String.fromCharCode(65 + portIdx) + '</span>'
+        + '<span class="gpio-port-hex">out=' + port.data + ' dir=' + port.dir + ' in=' + port.ext + '</span>'
+        + '</div>'
+        + pinsHtml
+        + '</div>';
+}
+
+async function toggleGpioPin(port, bit) {
+    try {
+        gpioExtPins[port] ^= (1 << bit);
+        const hexVal = '0x' + gpioExtPins[port].toString(16).padStart(4, '0');
+        await rpc('gpio.write', { port: port, value: hexVal });
+        await refreshPeripherals();
+    } catch (e) { toast('GPIO error: ' + (e.message || e), true); }
+}
+
+async function refreshPeripherals() {
+    try {
+        const periph = await rpc('periph.list');
+        updatePeripherals(periph);
+    } catch (e) { console.error('Periph error:', e); }
+}
+
+function updatePeripherals(p) {
+    const view = document.getElementById('periph-view');
+    let html = '';
+
+    if (p.gpio) {
+        html += '<div class="periph-group"><div class="periph-group-title">GPIO</div>';
+        for (const port of p.gpio) {
+            html += renderGpioPort(port);
+        }
+        html += '<div class="gpio-legend">'
+            + '<span><span class="gpio-legend-dot out"></span>Output</span>'
+            + '<span><span class="gpio-legend-dot in"></span>Input (click to toggle)</span>'
+            + '</div>';
+        html += '</div>';
+    }
+
+    if (p.timer) {
+        html += '<div class="periph-group"><div class="periph-group-title">Timer</div>'
+             + '<div class="periph-row">'
+             + '<span class="periph-val">cnt=' + p.timer.count + '</span>'
+             + '<span class="periph-val">ctrl=' + p.timer.ctrl + '</span>'
+             + '<span class="periph-val">cmp=' + p.timer.compare + '</span>'
+             + '</div></div>';
+    }
+
+    if (p.uart) {
+        html += '<div class="periph-group"><div class="periph-group-title">UART</div>'
+             + '<div class="periph-row">'
+             + '<span class="periph-val">ctrl=' + p.uart.ctrl + '</span>'
+             + '<span class="periph-val">st=' + p.uart.status + '</span>'
+             + '<span class="periph-val">tx=' + p.uart.tx_state + '</span>'
+             + '</div></div>';
+    }
+
+    if (!html) html = '<div style="color:var(--text-dim);padding:4px 6px;font-size:11px;">No peripherals</div>';
+    view.innerHTML = html;
+}
+
+function updateBreakpointList() {
+    const el = document.getElementById('bp-list');
+    if (breakpoints.size === 0) {
+        el.innerHTML = '<div style="color:var(--text-dim);padding:4px 6px;font-size:11px;">Click disassembly line to toggle</div>';
+        return;
+    }
+    let html = '';
+    for (const addr of breakpoints) {
+        html += '<div class="bp-entry">'
+             + '<span>' + addr + '</span>'
+             + '<span class="bp-remove" onclick="toggleBreakpoint(\'' + addr + '\')">[x]</span>'
+             + '</div>';
+    }
+    el.innerHTML = html;
+}
+
+// ---- Navigation ----
+function goToDisasmAddr() {
+    const input = document.getElementById('disasm-addr');
+    disasmBase = parseInt(input.value, 16) || 0;
+    refreshDisasm();
+}
+
+function goToPC() {
+    disasmBase = Math.max(0, currentPC - 10);
+    document.getElementById('disasm-addr').value = '0x' + disasmBase.toString(16).padStart(4, '0');
+    refreshDisasm();
+}
+
+function goToMemAddr() {
+    const addr = document.getElementById('mem-addr');
+    const count = document.getElementById('mem-count');
+    memBase = parseInt(addr.value, 16) || 0;
+    memCount = parseInt(count.value, 10) || 32;
+    refreshMemory();
+}
+
+// ---- Keyboard shortcuts ----
+document.addEventListener('keydown', (e) => {
+    // Don't intercept when typing in inputs
+    if (e.target.tagName === 'INPUT') return;
+
+    switch (e.key.toLowerCase()) {
+        case 's': e.preventDefault(); doStep(); break;
+        case 'c': e.preventDefault(); doContinue(); break;
+        case 'p': e.preventDefault(); doPause(); break;
+        case 'r': e.preventDefault(); doReset(); break;
+    }
+});
+
+// ---- Helpers ----
+function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function toast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => el.className = 'toast', 3000);
+}
+
+// ---- ISA tooltip ----
+(function() {
+    const tip = document.getElementById('isa-tooltip');
+    document.addEventListener('mouseover', function(e) {
+        const el = e.target.closest('.asm-mne[data-tip]');
+        if (!el) { tip.style.display = 'none'; return; }
+        const text = el.getAttribute('data-tip');
+        const mne = el.textContent;
+        tip.innerHTML = '<b>' + escHtml(mne) + '</b> — ' + escHtml(text).replace(/\n/g, '<br>');
+        const r = el.getBoundingClientRect();
+        let left = r.left;
+        let top = r.bottom + 4;
+        // Keep within viewport
+        if (left + 420 > window.innerWidth) left = window.innerWidth - 430;
+        if (top + 150 > window.innerHeight) top = r.top - tip.offsetHeight - 4;
+        tip.style.left = Math.max(4, left) + 'px';
+        tip.style.top = top + 'px';
+        tip.style.display = 'block';
+    });
+    document.addEventListener('mouseout', function(e) {
+        if (e.target.closest('.asm-mne[data-tip]')) tip.style.display = 'none';
+    });
+})();
+
+// ---- Init ----
+connect();
+</script>
+</body>
+</html>

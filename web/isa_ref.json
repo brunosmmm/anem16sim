@@ -1,0 +1,284 @@
+{
+  "NOP": {
+    "summary": "No operation",
+    "encoding": "0000 0000 0000 0001 (OR R0, R0)",
+    "pipeline": "Passes through pipeline with no effect"
+  },
+  "HALT": {
+    "summary": "Halt execution",
+    "encoding": "1111 1111 1111 1111 (0xFFFF)",
+    "pipeline": "Stops the CPU clock"
+  },
+
+  "ADD": {
+    "summary": "Ra = Ra + Rb",
+    "encoding": "[0000] [Ra:4] [Rb:4] [0010]  R-type, func=0010",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag",
+    "operands": "Ra: source and destination register, Rb: second source"
+  },
+  "SUB": {
+    "summary": "Ra = Ra - Rb",
+    "encoding": "[0000] [Ra:4] [Rb:4] [0110]  R-type, func=0110",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag",
+    "operands": "Ra: source and destination register, Rb: second source"
+  },
+  "AND": {
+    "summary": "Ra = Ra & Rb (bitwise AND)",
+    "encoding": "[0000] [Ra:4] [Rb:4] [0000]  R-type, func=0000",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag"
+  },
+  "OR": {
+    "summary": "Ra = Ra | Rb (bitwise OR)",
+    "encoding": "[0000] [Ra:4] [Rb:4] [0001]  R-type, func=0001",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag"
+  },
+  "XOR": {
+    "summary": "Ra = Ra ^ Rb (bitwise XOR)",
+    "encoding": "[0000] [Ra:4] [Rb:4] [1111]  R-type, func=1111",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag"
+  },
+  "NOR": {
+    "summary": "Ra = ~(Ra | Rb) (bitwise NOR)",
+    "encoding": "[0000] [Ra:4] [Rb:4] [1100]  R-type, func=1100",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag"
+  },
+  "SLT": {
+    "summary": "Ra = (Ra < Rb) ? 1 : 0 (signed comparison)",
+    "encoding": "[0000] [Ra:4] [Rb:4] [0111]  R-type, func=0111",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag",
+    "notes": "Uses signed comparison. Values with bit 15 set are negative."
+  },
+  "SGT": {
+    "summary": "Ra = (Ra > Rb) ? 1 : 0 (signed comparison)",
+    "encoding": "[0000] [Ra:4] [Rb:4] [1000]  R-type, func=1000",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag",
+    "notes": "Uses signed comparison. Values with bit 15 set are negative."
+  },
+  "MUL": {
+    "summary": "HI:LO = Ra * Rb (unsigned 16x16 → 32-bit)",
+    "encoding": "[0000] [Ra:4] [Rb:4] [0011]  R-type, func=0011",
+    "pipeline": "Result in HI:LO, NOT Ra. Use MFHI/MFLO to read.",
+    "notes": "Does NOT write to Ra. Insert 1 NOP before MFHI/MFLO."
+  },
+
+  "SHL": {
+    "summary": "Ra = Ra << n (logical shift left, zero fill)",
+    "encoding": "[0001] [Ra:4] [shamt:4] [0010]  S-type, func=0010",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag",
+    "operands": "Ra: register, n: shift amount (0-15, immediate not register)"
+  },
+  "SHR": {
+    "summary": "Ra = Ra >> n (logical shift right, zero fill)",
+    "encoding": "[0001] [Ra:4] [shamt:4] [0001]  S-type, func=0001",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag"
+  },
+  "SAR": {
+    "summary": "Ra = Ra >>> n (arithmetic shift right, sign-extend)",
+    "encoding": "[0001] [Ra:4] [shamt:4] [0000]  S-type, func=0000",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag",
+    "notes": "Preserves sign bit. Useful for dividing signed values by powers of 2."
+  },
+  "ROL": {
+    "summary": "Ra = rotate_left(Ra, n)",
+    "encoding": "[0001] [Ra:4] [shamt:4] [1000]  S-type, func=1000",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag"
+  },
+  "ROR": {
+    "summary": "Ra = rotate_right(Ra, n)",
+    "encoding": "[0001] [Ra:4] [shamt:4] [0100]  S-type, func=0100",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag"
+  },
+
+  "LW": {
+    "summary": "Rd = MEM[Rb + offset] (load word)",
+    "encoding": "[0011] [Rd:4] [Rb:4] [off:4]  W-type",
+    "pipeline": "Data at MEM stage. 1-cycle LW stall if next instr uses Rd.",
+    "operands": "Rd: destination, Rb: base register, offset: 4-bit unsigned (0-15)"
+  },
+  "SW": {
+    "summary": "MEM[Rb + offset] = Rs (store word)",
+    "encoding": "[0010] [Rs:4] [Rb:4] [off:4]  W-type",
+    "pipeline": "Store at MEM stage. May stall if Rs still in flight.",
+    "operands": "Rs: source data, Rb: base register, offset: 4-bit unsigned (0-15)"
+  },
+
+  "LIU": {
+    "summary": "Rd[15:8] = imm8 (load upper byte, lower unchanged)",
+    "encoding": "[0100] [Rd:4] [imm8:8]  I-type",
+    "pipeline": "Partial write at WB. NFW stall (up to 3 cycles) for dependents.",
+    "notes": "Use with LIL to load a full 16-bit constant (LIU first, then LIL)."
+  },
+  "LIL": {
+    "summary": "Rd[7:0] = imm8 (load lower byte, upper unchanged)",
+    "encoding": "[0101] [Rd:4] [imm8:8]  I-type",
+    "pipeline": "Partial write at WB. NFW stall (up to 3 cycles) for dependents.",
+    "notes": "Preserves upper byte. LIU+LIL pair = LIW pseudo-instruction."
+  },
+  "ADDI": {
+    "summary": "Rd = Rd + sign_extend(imm8)",
+    "encoding": "[1011] [Rd:4] [imm8:8]  I-type",
+    "pipeline": "Resolves: ALU | Forwarding: full | Updates Z flag",
+    "operands": "Rd: source and destination, imm8: signed (-128 to +127)"
+  },
+
+  "J": {
+    "summary": "PC = PC + 1 + offset (unconditional jump)",
+    "encoding": "[1111] [offset:12]  J-type (12-bit signed)",
+    "pipeline": "Resolves: ID | 1 flush slot | Range: ±2047 instructions"
+  },
+  "JAL": {
+    "summary": "R15 = PC + 2; PC = PC + 1 + offset (jump and link / call)",
+    "encoding": "[1101] [offset:12]  J-type (12-bit signed)",
+    "pipeline": "Resolves: ID | 1 flush slot | Return addr in R15",
+    "notes": "R15 gets PC+2 (skips flush slot). Use JR R15 to return."
+  },
+  "JR": {
+    "summary": "PC = Rs (jump to register)",
+    "encoding": "[1100] [Rs:4] [0000] [0000]",
+    "pipeline": "Resolves: ID | 1 flush slot | Stalls if Rs in ALU/MEM",
+    "notes": "Commonly used as JR R15 to return from JAL."
+  },
+
+  "BZ": {
+    "summary": "Always branch to PC + 2 + offset (unconditional)",
+    "encoding": "[1000] [offset:12]  (12-bit signed)",
+    "pipeline": "Resolves: ALU | 2 flush slots"
+  },
+  "BZ.T": {
+    "summary": "Branch if Z=1 (result was zero): PC = PC + 2 + offset",
+    "encoding": "[1001] [offset:12]  (12-bit signed)",
+    "pipeline": "Resolves: ALU | 2 flush slots | Z set by R/S-type only",
+    "notes": "Z flag only updated by R-type and S-type instructions."
+  },
+  "BZ.N": {
+    "summary": "Branch if Z=0 (result was non-zero): PC = PC + 2 + offset",
+    "encoding": "[1010] [offset:12]  (12-bit signed)",
+    "pipeline": "Resolves: ALU | 2 flush slots | Z set by R/S-type only"
+  },
+  "BHLEQ": {
+    "summary": "Branch if higher/lower/equal",
+    "encoding": "[0110] [offset:12]  (12-bit signed)",
+    "pipeline": "Resolves: ALU | 2 flush slots"
+  },
+
+  "PUSH": {
+    "summary": "SP--; MEM[SP] = Rs (pre-decrement push)",
+    "encoding": "[0111] [Rs:4] [0000] [0000]  STK-type, func=0000",
+    "pipeline": "SP update at WB. SP forwarding allows back-to-back PUSH.",
+    "notes": "Full-descending stack. SP resets to 0xFFCF."
+  },
+  "POP": {
+    "summary": "Rd = MEM[SP]; SP++ (post-increment pop)",
+    "encoding": "[0111] [Rd:4] [0000] [0001]  STK-type, func=0001",
+    "pipeline": "Like LW — 1-cycle stall if next instr uses Rd."
+  },
+  "SPRD": {
+    "summary": "Rd = SP (read stack pointer to GPR)",
+    "encoding": "[0111] [Rd:4] [0000] [0010]  STK-type, func=0010",
+    "pipeline": "Routes SP through ALU. Full forwarding, no stalls."
+  },
+  "SPWR": {
+    "summary": "SP = Rs (write GPR to stack pointer)",
+    "encoding": "[0111] [Rs:4] [0000] [0011]  STK-type, func=0011",
+    "pipeline": "SP written at WB stage."
+  },
+
+  "MFHI": {
+    "summary": "Rn = HI (move from HI register to GPR)",
+    "encoding": "[1110] [0111] [0000] [Rn:4]  M1-type",
+    "pipeline": "NFW stall for dependents. Insert 1 NOP after MUL.",
+    "notes": "Register index in bits 3:0 (not 11:8)."
+  },
+  "MFLO": {
+    "summary": "Rn = LO (move from LO register to GPR)",
+    "encoding": "[1110] [1000] [0000] [Rn:4]  M1-type",
+    "pipeline": "NFW stall for dependents. Insert 1 NOP after MUL."
+  },
+  "MTHI": {
+    "summary": "HI = Rn (move from GPR to HI register)",
+    "encoding": "[1110] [1001] [0000] [Rn:4]  M1-type",
+    "pipeline": "Write at WB stage."
+  },
+  "MTLO": {
+    "summary": "LO = Rn (move from GPR to LO register)",
+    "encoding": "[1110] [1010] [0000] [Rn:4]  M1-type",
+    "pipeline": "Write at WB stage."
+  },
+  "LHH": {
+    "summary": "HI[15:8] = imm8 (load HI high byte)",
+    "encoding": "[1110] [0001] [imm8:8]  M1-type",
+    "pipeline": "Partial write at WB."
+  },
+  "LHL": {
+    "summary": "HI[7:0] = imm8 (load HI low byte)",
+    "encoding": "[1110] [0000] [imm8:8]  M1-type",
+    "pipeline": "Partial write at WB."
+  },
+  "LLH": {
+    "summary": "LO[15:8] = imm8 (load LO high byte)",
+    "encoding": "[1110] [0011] [imm8:8]  M1-type",
+    "pipeline": "Partial write at WB."
+  },
+  "LLL": {
+    "summary": "LO[7:0] = imm8 (load LO low byte)",
+    "encoding": "[1110] [0010] [imm8:8]  M1-type",
+    "pipeline": "Partial write at WB."
+  },
+  "AIH": {
+    "summary": "HI = HI + imm8 (add immediate to HI)",
+    "encoding": "[1110] [0101] [imm8:8]  M1-type",
+    "pipeline": "Write at WB stage."
+  },
+  "AIL": {
+    "summary": "LO = LO + imm8 (add immediate to LO)",
+    "encoding": "[1110] [0110] [imm8:8]  M1-type",
+    "pipeline": "Write at WB stage."
+  },
+  "AIS": {
+    "summary": "HI += imm8; LO += imm8 (add immediate to both)",
+    "encoding": "[1110] [0100] [imm8:8]  M1-type",
+    "pipeline": "Write at WB stage."
+  },
+  "LPM": {
+    "summary": "Rn = PMEM[Rb] (load word from program memory)",
+    "encoding": "[1110] [1101] [Rb:4] [Rn:4]  M1-type",
+    "pipeline": "Reads instruction memory instead of data memory."
+  },
+
+  "SYSCALL": {
+    "summary": "Software trap: EPC=addr+2, ECA={1,svc#}, IEN=0, PC=0x0002",
+    "encoding": "[1110] [1011] [svc_num:8]  M1-type",
+    "pipeline": "Resolves: ID | 1 flush slot | Jumps to exception vector",
+    "notes": "Service number (0-255) stored in ECA bits 7:0."
+  },
+  "RETI": {
+    "summary": "Return from exception: PC = EPC, IEN = 1",
+    "encoding": "[1110] [1100] [0000] [0000]  M4-type",
+    "pipeline": "Resolves: ID | 1 flush slot | Re-enables interrupts"
+  },
+  "EI": {
+    "summary": "Enable interrupts: IEN = 1",
+    "encoding": "[1110] [1100] [0001] [0000]  M4-type",
+    "pipeline": "Takes effect at ID stage. No flush slots."
+  },
+  "DI": {
+    "summary": "Disable interrupts: IEN = 0",
+    "encoding": "[1110] [1100] [0010] [0000]  M4-type",
+    "pipeline": "Takes effect at ID stage. No flush slots."
+  },
+  "MFEPC": {
+    "summary": "Rn = EPC (read exception return address to GPR)",
+    "encoding": "[1110] [1100] [0011] [Rn:4]  M4-type",
+    "pipeline": "ALU pass-through. Full forwarding, no stalls."
+  },
+  "MFECA": {
+    "summary": "Rn = ECA (read exception cause to GPR)",
+    "encoding": "[1110] [1100] [0100] [Rn:4]  M4-type",
+    "pipeline": "ALU pass-through. Full forwarding, no stalls."
+  },
+  "MTEPC": {
+    "summary": "EPC = Rn (write GPR to exception return address)",
+    "encoding": "[1110] [1100] [0101] [Rn:4]  M4-type",
+    "pipeline": "EPC written at WB. Stalls if RETI/MFEPC follows within 2 cycles."
+  }
+}
