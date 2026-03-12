@@ -22,6 +22,8 @@
 --   $4  = address counter
 --   $5  = limit (10)
 --   $6  = F(n) (current, computed)
+--   $7  = GPIO Port A base address (0xFFD0)
+--   $8  = scratch (GPIO direction)
 --   $14 = scratch for comparison
 
 -- Setup
@@ -30,12 +32,21 @@ LIL $2, 0            -- F(n-2) = 0
 LIL $3, 1            -- F(n-1) = 1
 LIL $4, 2            -- start storing at addr 2
 LIL $5, 10           -- compute 10 numbers total
+
+-- GPIO setup: load base address 0xFFD0
+LIL $7, 0xD0
+LIU $7, 0xFF         -- $7 = 0xFFD0 (GPIO Port A data)
 NOP
+
+-- Set Port A direction to all-output (0xFFFF)
+LIL $8, 0xFF
+LIU $8, 0xFF         -- $8 = 0xFFFF
 NOP
-NOP
+SW $8, 1($7)         -- GPIO_PORTA_DIR = 0xFFFF (all output)
 
 -- Store base cases
 SW $2, 0($0)         -- mem[0] = F(0) = 0
+SW $2, 0($7)         -- GPIO Port A = F(0)
 SW $3, 1($0)         -- mem[1] = F(1) = 1
 
 -- Loop: compute F(n) = F(n-1) + F(n-2)
@@ -47,9 +58,10 @@ FIB_LOOP:
   NOP
   ADD $6, $3         -- $6 = F(n-2) + F(n-1) = F(n)
 
-  -- Store to memory at current address
+  -- Store to memory and GPIO
   NOP
   SW $6, 0($4)       -- mem[addr] = F(n)
+  SW $6, 0($7)       -- GPIO Port A = F(n)
 
   -- Shift: F(n-2) = F(n-1), F(n-1) = F(n)
   AND $2, $0         -- clear $2
